@@ -33,7 +33,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.5.0'
     implementation project(path: ':shared')
     implementation files('libs/jna-5.12.1.jar')
-    implementation files('libs/unity-classes.jar')
+    compileOnly files('libs/unity-classes.jar')
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
