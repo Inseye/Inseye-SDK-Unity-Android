@@ -21,6 +21,7 @@ import com.unity3d.player.UnityPlayer;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import com.inseye.shared.R;
 
 public class UnitySDK {
     public static final String TAG = "AndroidUnitySDK";
@@ -44,10 +45,13 @@ public class UnitySDK {
         }
         Activity currentActivity = UnityPlayer.currentActivity;
         Resources res = currentActivity.getResources();
-        Intent serviceBindIntent = new Intent(res.getString(com.inseye.shared.R.string.service_action_name));
-        serviceBindIntent = serviceBindIntent.setPackage(res.getString(com.inseye.shared.R.string.service_package_name));
+
+        Intent serviceIntent = new Intent();
+        ComponentName component = new ComponentName(res.getString(R.string.service_package_name), res.getString(R.string.service_class_name));
+        serviceIntent.setComponent(component);
+
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-        boolean connectedSuccessfully = currentActivity.getApplicationContext().bindService(serviceBindIntent, connection, Context.BIND_AUTO_CREATE);
+        boolean connectedSuccessfully = currentActivity.getApplicationContext().bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE);
         if (!connectedSuccessfully)
             return ErrorCodes.FailedToBindToService;
         synchronized (waitForServiceConnectionLock) {
