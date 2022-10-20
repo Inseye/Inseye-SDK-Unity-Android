@@ -12,5 +12,7 @@ public class ErrorCodes {
     public static final int AnotherCalibrationIsOngoing = 20;
     // reading gaze data
     public static final int NoValidGazeAvailable = 30;
+    // events
+    public static final int AlreadySubscribedToEvents = 40;
     private ErrorCodes() {}
 }

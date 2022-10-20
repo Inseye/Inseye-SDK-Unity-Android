@@ -1,6 +1,5 @@
 package com.inseye.unitysdk;
 
-import android.os.Debug;
 import android.os.RemoteException;
 import android.util.Log;
 
