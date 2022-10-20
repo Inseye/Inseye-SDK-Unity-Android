@@ -12,6 +12,7 @@ public class SDKState {
     public static final ConstSDKState CONNECTED = new ConstSDKState(1);
     public static final ConstSDKState CALIBRATING = new ConstSDKState(2);
     public static final ConstSDKState ATTACHED_TO_GAZE_DATA_STREAM = new ConstSDKState(4);
+    public static final ConstSDKState SUBSCRIBED_TO_EVENTS = new ConstSDKState(8);
     private int value;
     public SDKState() {
         value = 0;

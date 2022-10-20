@@ -14,6 +14,7 @@ import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.CalibrationPoint;
 import com.inseye.shared.communication.GazeData;
 import com.inseye.shared.communication.ICalibrationCallback;
+import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
 import com.sun.jna.Pointer;
@@ -40,6 +41,7 @@ public class UnitySDK {
      * @return one of ErrorCodes
      */
     public static int initialize() {
+        Log.d(TAG, "initialize");
         if (sdkState.isInState(SDKState.CONNECTED)) {
             return ErrorCodes.SDKAlreadyConnected;
         }
@@ -64,10 +66,19 @@ public class UnitySDK {
         return ErrorCodes.Successful;
     }
 
-
     public static int dispose() {
+        Log.d(TAG, "dispose");
+        if (sdkState.isInState(SDKState.NOT_CONNECTED))
+            return ErrorCodes.Successful;
         sdkState.setState(SDKState.NOT_CONNECTED);
-        UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
+        try {
+            UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
+        }
+        catch (Exception e)
+        {
+            setErrorMessage(e.getMessage());
+            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        }
         return ErrorCodes.Successful;
     }
 
@@ -94,6 +105,44 @@ public class UnitySDK {
         }
     }
 
+    /**
+     * Called by UnitySDK to open events channel
+     * @return one of ErrorCode values
+     */
+    public static int subscribeToEvents() {
+        Log.d(TAG, "subscribeToEvents");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            return ErrorCodes.SDKIsNotConnectedToService;
+        if (!sdkState.isInState(SDKState.SUBSCRIBED_TO_EVENTS))
+            return ErrorCodes.AlreadySubscribedToEvents;
+        try {
+            sharedService.subscribeToEyetrackerEvents(eventListener);
+        }
+        catch (RemoteException e) {
+            setErrorMessage(e.getMessage());
+            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        }
+        return ErrorCodes.Successful;
+    }
+
+    public static int unsubscribeFromEvents()
+    {
+        Log.d(TAG, "unsubscribeFromEvents");
+        if (!sdkState.isInState(SDKState.SUBSCRIBED_TO_EVENTS))
+            return ErrorCodes.Successful;
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            return ErrorCodes.Successful;
+        try {
+            sharedService.unsubscribeFromEyetrackerEvents();
+            sdkState.removeState(SDKState.SUBSCRIBED_TO_EVENTS);
+        }
+        catch (RemoteException e)
+        {
+            setErrorMessage(e.getMessage());
+            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        }
+        return ErrorCodes.Successful;
+    }
     /**
      * Called by UnitySDK to begin calibration procedure
      *
@@ -167,6 +216,29 @@ public class UnitySDK {
             sdkState.setState(SDKState.NOT_CONNECTED);
         }
 
+    };
+
+    private final static IEyetrackerEventListener eventListener = new IEyetrackerEventListener.Stub() {
+        private final static String gameObjectName = "AndroidMessageListener";
+        @Override
+        public void handleEyetrackerDisconnected() throws RemoteException {
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerDisconnected", "");
+        }
+
+        @Override
+        public void handleEyetrackerConnected() throws RemoteException {
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerConnected", "");
+        }
+
+        @Override
+        public void handleEyetrackerAvailable() throws RemoteException {
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerAvailable", "");
+        }
+
+        @Override
+        public void handleEyetrackerUnavailable() throws RemoteException {
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerUnavailable", "");
+        }
     };
 
 }
