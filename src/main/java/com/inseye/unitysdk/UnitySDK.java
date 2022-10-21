@@ -10,26 +10,25 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.inseye.shared.R;
 import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.CalibrationPoint;
 import com.inseye.shared.communication.GazeData;
-import com.inseye.shared.communication.ICalibrationCallback;
 import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
+import com.inseye.shared.communication.TrackerAvailability;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import com.inseye.shared.R;
 
 public class UnitySDK {
     public static final String TAG = "AndroidUnitySDK";
     private static final ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[GazeData.SERIALIZER.getSizeInBytes()]);
     private static final GazeData gazeData = new GazeData();
-    private static float val = 0;
-    private static SDKState sdkState = new SDKState();
+    private static final SDKState sdkState = new SDKState();
     private static String errorMessage = "";
     private static ISharedService sharedService;
     private static CalibrationProcedure calibrationProcedure;
@@ -80,6 +79,13 @@ public class UnitySDK {
             return ErrorCodes.UnknownErrorCheckErrorMessage;
         }
         return ErrorCodes.Successful;
+    }
+
+    public static int getEyetrackerAvailability() throws Exception {
+        Log.d(TAG, "getEyetrackerAvailability");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            throw new Exception("SDK is not connected to service");
+        return sharedService.getTrackerAvailability().ordinal();
     }
 
     public static int getEyetrackingDataStreamPort(long portIntPointer) {
@@ -219,25 +225,11 @@ public class UnitySDK {
     };
 
     private final static IEyetrackerEventListener eventListener = new IEyetrackerEventListener.Stub() {
-        private final static String gameObjectName = "AndroidMessageListener";
-        @Override
-        public void handleEyetrackerDisconnected() throws RemoteException {
-            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerDisconnected", "");
-        }
+        private static final String gameObjectName = "AndroidMessageListener";
 
         @Override
-        public void handleEyetrackerConnected() throws RemoteException {
-            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerConnected", "");
-        }
-
-        @Override
-        public void handleEyetrackerAvailable() throws RemoteException {
-            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerAvailable", "");
-        }
-
-        @Override
-        public void handleEyetrackerUnavailable() throws RemoteException {
-            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerUnavailable", "");
+        public void handleTrackerAvailabilityChanged(TrackerAvailability availability) {
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
         }
     };
 
