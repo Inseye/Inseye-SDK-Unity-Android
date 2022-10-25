@@ -13,7 +13,6 @@ import android.util.Log;
 import com.inseye.shared.R;
 import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.CalibrationPoint;
-import com.inseye.shared.communication.GazeData;
 import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
@@ -21,13 +20,8 @@ import com.inseye.shared.communication.TrackerAvailability;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 public class UnitySDK {
     public static final String TAG = "AndroidUnitySDK";
-    private static final ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[GazeData.SERIALIZER.getSizeInBytes()]);
-    private static final GazeData gazeData = new GazeData();
     private static final SDKState sdkState = new SDKState();
     private static String errorMessage = "";
     private static ISharedService sharedService;
@@ -51,7 +45,6 @@ public class UnitySDK {
         ComponentName component = new ComponentName(res.getString(R.string.service_package_name), res.getString(R.string.service_class_name));
         serviceIntent.setComponent(component);
 
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         boolean connectedSuccessfully = currentActivity.getApplicationContext().bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE);
         if (!connectedSuccessfully)
             return ErrorCodes.FailedToBindToService;
@@ -229,6 +222,7 @@ public class UnitySDK {
 
         @Override
         public void handleTrackerAvailabilityChanged(TrackerAvailability availability) {
+            Log.d(TAG, "handleTrackerAvailabilityChanged");
             UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
         }
     };
