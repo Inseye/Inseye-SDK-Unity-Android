@@ -77,8 +77,8 @@ public class UnitySDK {
         return ErrorCodes.Successful;
     }
 
-    public static int getEyetrackerAvailability() throws Exception {
-        Log.d(TAG, "getEyetrackerAvailability");
+    public static int getEyeTrackerAvailability() throws Exception {
+        Log.d(TAG, "getEyeTrackerAvailability");
         if (!sdkState.isInState(SDKState.CONNECTED))
             throw new Exception("SDK is not connected to service");
         return sharedService.getTrackerAvailability().ordinal();
@@ -288,7 +288,7 @@ public class UnitySDK {
         @Override
         public void handleTrackerAvailabilityChanged(TrackerAvailability availability) {
             Log.d(TAG, "handleTrackerAvailabilityChanged");
-            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyetrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
         }
     };
 
