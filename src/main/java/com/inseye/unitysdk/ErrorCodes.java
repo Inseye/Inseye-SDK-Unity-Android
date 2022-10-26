@@ -5,6 +5,7 @@ public class ErrorCodes {
     public static final int Successful = 0;
     public static final int UnknownErrorCheckErrorMessage = 1;
     public static final int SDKIsNotConnectedToService = 2;
+    public static final int UnknownError = 3;
     // initialization error codes
     public static final int SDKAlreadyConnected = 10;
     public static final int FailedToBindToService = 11;

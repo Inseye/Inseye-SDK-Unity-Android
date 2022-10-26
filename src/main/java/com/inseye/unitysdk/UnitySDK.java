@@ -29,8 +29,7 @@ public class UnitySDK {
     private final static Object waitForServiceConnectionLock = new Object();
 
     /**
-     * Initializes SDK
-     *
+     * Called by UnitySDK to initialize SDK
      * @return one of ErrorCodes
      */
     public static int initialize() {
@@ -68,8 +67,12 @@ public class UnitySDK {
         }
         catch (Exception e)
         {
-            setErrorMessage(e.getMessage());
-            return ErrorCodes.UnknownErrorCheckErrorMessage;
+            String errorMessage = e.getMessage();
+            if (errorMessage != null) {
+                setErrorMessage(errorMessage);
+                return ErrorCodes.UnknownErrorCheckErrorMessage;
+            }
+            return ErrorCodes.UnknownError;
         }
         return ErrorCodes.Successful;
     }
@@ -81,8 +84,13 @@ public class UnitySDK {
         return sharedService.getTrackerAvailability().ordinal();
     }
 
-    public static int getEyetrackingDataStreamPort(long portIntPointer) {
-        Log.d(TAG, "getEyetrackingDataStreamPort");
+    /**
+     * Called by UnitySDK to get gaze data udp socket
+     * @param portIntPointer pointer to in where port can be written
+     * @return on of ErrorCode values
+     */
+    public static int getEyeTrackingDataStreamPort(long portIntPointer) {
+        Log.d(TAG, "getEyeTrackingDataStreamPort");
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
         try {
@@ -105,6 +113,32 @@ public class UnitySDK {
     }
 
     /**
+     * Called by UnitySDK to inform service that client no longer need gaze stream
+     * @return one of ErrorCode values
+     */
+    public static int stopEyeTrackingDataStream() {
+        Log.d(TAG, "stopEyeTrackingDataStream");
+        if (sdkState.isInState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM)) {
+            try {
+                sharedService.stopStreamingGazeData();
+                sdkState.removeState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
+                return ErrorCodes.Successful;
+            }
+            catch (RemoteException exception) {
+                exception.printStackTrace();
+                String errorMessage = exception.getMessage();
+                if (errorMessage != null)
+                {
+                    setErrorMessage(errorMessage);
+                    return ErrorCodes.UnknownErrorCheckErrorMessage;
+                }
+                return ErrorCodes.UnknownError;
+            }
+        }
+        return ErrorCodes.Successful;
+    }
+
+    /**
      * Called by UnitySDK to open events channel
      * @return one of ErrorCode values
      */
@@ -112,18 +146,28 @@ public class UnitySDK {
         Log.d(TAG, "subscribeToEvents");
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
-        if (!sdkState.isInState(SDKState.SUBSCRIBED_TO_EVENTS))
+        if (sdkState.isInState(SDKState.SUBSCRIBED_TO_EVENTS))
             return ErrorCodes.AlreadySubscribedToEvents;
         try {
             sharedService.subscribeToEyetrackerEvents(eventListener);
+            sdkState.addState(SDKState.SUBSCRIBED_TO_EVENTS);
         }
         catch (RemoteException e) {
-            setErrorMessage(e.getMessage());
-            return ErrorCodes.UnknownErrorCheckErrorMessage;
+            String errorMessage = e.getMessage();
+            if (errorMessage != null)
+            {
+                setErrorMessage(errorMessage);
+                return ErrorCodes.UnknownErrorCheckErrorMessage;
+            }
+            return ErrorCodes.UnknownError;
         }
         return ErrorCodes.Successful;
     }
 
+    /**
+     * Called by UnitySDK to close event channel
+     * @return one of ErrorCode values
+     */
     public static int unsubscribeFromEvents()
     {
         Log.d(TAG, "unsubscribeFromEvents");
@@ -134,14 +178,23 @@ public class UnitySDK {
         try {
             sharedService.unsubscribeFromEyetrackerEvents();
             sdkState.removeState(SDKState.SUBSCRIBED_TO_EVENTS);
+            Log.i(TAG, "Unsubscribed from hardware events");
         }
         catch (RemoteException e)
         {
-            setErrorMessage(e.getMessage());
-            return ErrorCodes.UnknownErrorCheckErrorMessage;
+            Log.e(TAG, "Failed to unsubscribe from hardware events");
+            String errorMessage = e.getMessage();
+            if (errorMessage != null)
+            {
+                setErrorMessage(errorMessage);
+                Log.e(TAG, errorMessage);
+                return ErrorCodes.UnknownErrorCheckErrorMessage;
+            }
+            return ErrorCodes.UnknownError;
         }
         return ErrorCodes.Successful;
     }
+
     /**
      * Called by UnitySDK to begin calibration procedure
      *
@@ -215,6 +268,18 @@ public class UnitySDK {
             sdkState.setState(SDKState.NOT_CONNECTED);
         }
 
+        @Override
+        public void onBindingDied(ComponentName name) {
+            // TODO: Maybe inform unity that binding died
+            Log.d(TAG, "onBindingDied");
+            sdkState.setState(SDKState.NOT_CONNECTED);
+        }
+
+        @Override
+        public void onNullBinding(ComponentName name) {
+            Log.d(TAG, "onNullBinding");
+            sdkState.setState(SDKState.NOT_CONNECTED);
+        }
     };
 
     private final static IEyetrackerEventListener eventListener = new IEyetrackerEventListener.Stub() {
