@@ -32,8 +32,9 @@ public class UnitySDK {
      * Called by UnitySDK to initialize SDK
      * @return one of ErrorCodes
      */
-    public static int initialize() {
+    public static int initialize(long stateIntPointer) {
         Log.d(TAG, "initialize");
+        sdkState.addUnityPointer(new Pointer(stateIntPointer));
         if (sdkState.isInState(SDKState.CONNECTED)) {
             return ErrorCodes.SDKAlreadyConnected;
         }
@@ -50,6 +51,10 @@ public class UnitySDK {
         synchronized (waitForServiceConnectionLock) {
             try {
                 waitForServiceConnectionLock.wait(1000); // TODO: test in real world how long timeout is manageable
+                if (!sdkState.isInState(SDKState.CONNECTED)) {
+                    Log.e(TAG, "Failed to initialize SKD due to timeout");
+                    return ErrorCodes.SDKIsNotConnectedToService;
+                }
             } catch (InterruptedException e) {
                 return ErrorCodes.SDKIsNotConnectedToService;
             }
@@ -62,6 +67,7 @@ public class UnitySDK {
         if (sdkState.isInState(SDKState.NOT_CONNECTED))
             return ErrorCodes.Successful;
         sdkState.setState(SDKState.NOT_CONNECTED);
+        sdkState.clearUnityPointer();
         try {
             UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
         }
@@ -210,6 +216,11 @@ public class UnitySDK {
         if (sdkState.isInState(SDKState.CALIBRATING))
             return ErrorCodes.AnotherCalibrationIsOngoing;
         calibrationProcedure = new CalibrationProcedure(calibrationRequestPointer, calibrationResponsePointer, calibrationStatusPointer);
+        ICalibrationStatusListener listener = (oldStatus, newStatus) -> {
+            if (newStatus == CalibrationStatus.FinishedSuccessfully || newStatus == CalibrationStatus.FinishedFailed)
+                sdkState.removeState(SDKState.CALIBRATING);
+        };
+        calibrationProcedure.setCalibrationStatusListener(listener);
         CalibrationPoint initialPoint = new CalibrationPoint();
         ActionResult actionResult = sharedService.startCalibrationProcedure(calibrationProcedure.getCalibrationCallback(), initialPoint);
         if (!actionResult.successful) {
@@ -217,6 +228,7 @@ public class UnitySDK {
             return ErrorCodes.UnknownErrorCheckErrorMessage;
         }
         calibrationProcedure.setCalibrationPoint(initialPoint);
+        sdkState.addState(SDKState.CALIBRATING);
         return ErrorCodes.Successful;
     }
 
@@ -255,11 +267,11 @@ public class UnitySDK {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             Log.d(TAG, "onServiceConnected");
+            sharedService = ISharedService.Stub.asInterface(service);
+            sdkState.setState(SDKState.CONNECTED);
             synchronized (waitForServiceConnectionLock) {
                 waitForServiceConnectionLock.notifyAll();
             }
-            sharedService = ISharedService.Stub.asInterface(service);
-            sdkState.setState(SDKState.CONNECTED);
         }
 
         @Override
