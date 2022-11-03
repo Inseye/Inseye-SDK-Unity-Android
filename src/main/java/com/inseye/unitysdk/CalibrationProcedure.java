@@ -17,10 +17,6 @@ import kotlin.NotImplementedError;
 
 public class CalibrationProcedure {
 
-    private final static int CALIBRATION_STATUS_ONGOING = 1;
-    private final static int CALIBRATION_STATUS_FINISHED_SUCCESSFULLY = 2;
-    private final static int CALIBRATION_STATUS_FINISHED_FAILED = 3;
-
     private static final IByteSerializer<CalibrationPoint> CALIBRATION_POINT_SERIALIZER = new IByteSerializer<CalibrationPoint>() {
         // this serializer implementation must much much struct layout from UnitySDK C# code
         // in class Inseye.Internal.CalibrationPointRequest
@@ -68,7 +64,8 @@ public class CalibrationProcedure {
     private final Pointer calibrationPointRequestPointer;
     private final Pointer calibrationPointResponsePointer;
     private final Pointer calibrationStatusPointer;
-    private int calibrationStatus;
+    private CalibrationStatus calibrationStatus;
+    private ICalibrationStatusListener calibrationListener;
     private final ICalibrationCallback calibrationCallback = new ICalibrationCallback.Stub() {
 
         @Override
@@ -89,10 +86,10 @@ public class CalibrationProcedure {
         @Override
         public void finishCalibration(ActionResult calibrationResult) throws RemoteException {
             if (calibrationResult.successful)
-                setStatus(CALIBRATION_STATUS_FINISHED_SUCCESSFULLY);
+                setStatus(CalibrationStatus.FinishedSuccessfully);
             else {
                 UnitySDK.setErrorMessage(calibrationResult.errorMessage);
-                setStatus(CALIBRATION_STATUS_FINISHED_FAILED);
+                setStatus(CalibrationStatus.FinishedFailed);
             }
         }
     };
@@ -101,7 +98,7 @@ public class CalibrationProcedure {
         this.calibrationPointRequestPointer = new Pointer(calibrationPointRequestPointer);
         this.calibrationPointResponsePointer = new Pointer(calibrationPointResponsePointer);
         this.calibrationStatusPointer = new Pointer(calibrationStatusPointer);
-        setStatus(CALIBRATION_STATUS_ONGOING);
+        setStatus(CalibrationStatus.Ongoing);
     }
 
     public void setCalibrationPoint(CalibrationPoint calibrationPoint) {
@@ -118,11 +115,16 @@ public class CalibrationProcedure {
     }
 
     public boolean isCalibrationFinished() {
-        return calibrationStatus != CALIBRATION_STATUS_ONGOING;
+        return calibrationStatus != CalibrationStatus.Ongoing;
     }
-
-    private void setStatus(int status) {
+    public void setCalibrationStatusListener(ICalibrationStatusListener listener) {
+        calibrationListener = listener;
+    }
+    private void setStatus(CalibrationStatus status) {
+        CalibrationStatus oldStatus = calibrationStatus;
         calibrationStatus = status;
-        calibrationStatusPointer.setInt(0, status);
+        calibrationStatusPointer.setInt(0, status.intValue);
+        if (null != calibrationListener)
+            calibrationListener.CalibrationStatusChanged(oldStatus, status);
     }
 }
