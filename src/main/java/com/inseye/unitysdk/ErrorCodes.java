@@ -9,6 +9,7 @@ public class ErrorCodes {
     // initialization error codes
     public static final int SDKAlreadyConnected = 10;
     public static final int FailedToBindToService = 11;
+    public static final int InitializationTimeout = 12;
     // calibration error codes
     public static final int AnotherCalibrationIsOngoing = 20;
     // reading gaze data
