@@ -53,10 +53,12 @@ public class UnitySDK {
                 waitForServiceConnectionLock.wait(1000); // TODO: test in real world how long timeout is manageable
                 if (!sdkState.isInState(SDKState.CONNECTED)) {
                     Log.e(TAG, "Failed to initialize SKD due to timeout");
-                    return ErrorCodes.SDKIsNotConnectedToService;
+                    return ErrorCodes.InitializationTimeout;
                 }
-            } catch (InterruptedException e) {
-                return ErrorCodes.SDKIsNotConnectedToService;
+            } catch (Exception e) {
+                if (null != e.getMessage())
+                    setErrorMessage(e.getMessage());
+                return ErrorCodes.UnknownErrorCheckErrorMessage;
             }
         }
         return ErrorCodes.Successful;
