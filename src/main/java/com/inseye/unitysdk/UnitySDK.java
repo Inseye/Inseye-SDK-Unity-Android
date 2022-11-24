@@ -30,6 +30,7 @@ public class UnitySDK {
 
     /**
      * Called by UnitySDK to initialize SDK
+     *
      * @return one of ErrorCodes
      */
     public static int initialize(long stateIntPointer) {
@@ -56,9 +57,7 @@ public class UnitySDK {
                     return ErrorCodes.InitializationTimeout;
                 }
             } catch (Exception e) {
-                if (null != e.getMessage())
-                    setErrorMessage(e.getMessage());
-                return ErrorCodes.UnknownErrorCheckErrorMessage;
+                return HandleException(e);
             }
         }
         return ErrorCodes.Successful;
@@ -72,15 +71,8 @@ public class UnitySDK {
         sdkState.clearUnityPointer();
         try {
             UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
-        }
-        catch (Exception e)
-        {
-            String errorMessage = e.getMessage();
-            if (errorMessage != null) {
-                setErrorMessage(errorMessage);
-                return ErrorCodes.UnknownErrorCheckErrorMessage;
-            }
-            return ErrorCodes.UnknownError;
+        } catch (Exception e) {
+            return HandleException(e);
         }
         return ErrorCodes.Successful;
     }
@@ -94,6 +86,7 @@ public class UnitySDK {
 
     /**
      * Called by UnitySDK to get gaze data udp socket
+     *
      * @param portIntPointer pointer to in where port can be written
      * @return on of ErrorCode values
      */
@@ -105,23 +98,22 @@ public class UnitySDK {
             IntActionResult portResult = sharedService.startStreamingGazeData();
             sdkState.addState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
             if (!portResult.success) {
-                errorMessage = portResult.errorMessage;
+                setErrorMessage(portResult.errorMessage);
                 return ErrorCodes.UnknownErrorCheckErrorMessage;
-            }
-            else {
+            } else {
                 Pointer pointer = new Pointer(portIntPointer);
                 pointer.setInt(0, portResult.value);
                 return ErrorCodes.Successful;
             }
-        } catch (RemoteException remoteException) {
-            Log.e(TAG, "Unhandled exception occurred while attempting to get access to shared memory", remoteException);
-            errorMessage = "Unhandled exception occurred while attempting to get access to port value, check logs with tag: " + TAG;
-            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        } catch (Exception exception) {
+            Log.e(TAG, "Unhandled exception occurred while attempting to get access to shared memory", exception);
+            return HandleException(exception);
         }
     }
 
     /**
      * Called by UnitySDK to inform service that client no longer need gaze stream
+     *
      * @return one of ErrorCode values
      */
     public static int stopEyeTrackingDataStream() {
@@ -131,16 +123,8 @@ public class UnitySDK {
                 sharedService.stopStreamingGazeData();
                 sdkState.removeState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
                 return ErrorCodes.Successful;
-            }
-            catch (RemoteException exception) {
-                exception.printStackTrace();
-                String errorMessage = exception.getMessage();
-                if (errorMessage != null)
-                {
-                    setErrorMessage(errorMessage);
-                    return ErrorCodes.UnknownErrorCheckErrorMessage;
-                }
-                return ErrorCodes.UnknownError;
+            } catch (Exception exception) {
+                return HandleException(exception);
             }
         }
         return ErrorCodes.Successful;
@@ -148,6 +132,7 @@ public class UnitySDK {
 
     /**
      * Called by UnitySDK to open events channel
+     *
      * @return one of ErrorCode values
      */
     public static int subscribeToEvents() {
@@ -159,25 +144,18 @@ public class UnitySDK {
         try {
             sharedService.subscribeToEyetrackerEvents(eventListener);
             sdkState.addState(SDKState.SUBSCRIBED_TO_EVENTS);
-        }
-        catch (RemoteException e) {
-            String errorMessage = e.getMessage();
-            if (errorMessage != null)
-            {
-                setErrorMessage(errorMessage);
-                return ErrorCodes.UnknownErrorCheckErrorMessage;
-            }
-            return ErrorCodes.UnknownError;
+        } catch (RemoteException e) {
+            return HandleException(e);
         }
         return ErrorCodes.Successful;
     }
 
     /**
      * Called by UnitySDK to close event channel
+     *
      * @return one of ErrorCode values
      */
-    public static int unsubscribeFromEvents()
-    {
+    public static int unsubscribeFromEvents() {
         Log.d(TAG, "unsubscribeFromEvents");
         if (!sdkState.isInState(SDKState.SUBSCRIBED_TO_EVENTS))
             return ErrorCodes.Successful;
@@ -187,18 +165,9 @@ public class UnitySDK {
             sharedService.unsubscribeFromEyetrackerEvents();
             sdkState.removeState(SDKState.SUBSCRIBED_TO_EVENTS);
             Log.i(TAG, "Unsubscribed from hardware events");
-        }
-        catch (RemoteException e)
-        {
+        } catch (RemoteException e) {
             Log.e(TAG, "Failed to unsubscribe from hardware events");
-            String errorMessage = e.getMessage();
-            if (errorMessage != null)
-            {
-                setErrorMessage(errorMessage);
-                Log.e(TAG, errorMessage);
-                return ErrorCodes.UnknownErrorCheckErrorMessage;
-            }
-            return ErrorCodes.UnknownError;
+            return HandleException(e);
         }
         return ErrorCodes.Successful;
     }
@@ -208,7 +177,7 @@ public class UnitySDK {
      *
      * @param calibrationRequestPointer  pointer to struct where java can write points to display in unity
      * @param calibrationResponsePointer pointer to struct from which java can read status of display
-     * @param calibrationStatusPointer pointer to int where status calibration status can be updated
+     * @param calibrationStatusPointer   pointer to int where status calibration status can be updated
      * @return one of ErrorCode values
      */
     public static int startCalibrationProcedure(long calibrationRequestPointer, long calibrationResponsePointer, long calibrationStatusPointer) throws RemoteException {
@@ -237,11 +206,12 @@ public class UnitySDK {
 
     /**
      * Called by UnitySKD to abort current calibration
+     *
      * @return status code
      */
     public static int abortCalibrationProcedure() throws RemoteException {
         Log.d(TAG, "abortCalibrationProcedure");
-        if(!sdkState.isInState(SDKState.CONNECTED))
+        if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
         if (null != calibrationProcedure && !calibrationProcedure.isCalibrationFinished()) {
             ActionResult actionResult = sharedService.abortCalibrationProcedure();
@@ -255,6 +225,7 @@ public class UnitySDK {
 
     /**
      * Called by UnitySDK to get last error message
+     *
      * @return last error message
      */
     public static String getLastErrorMessage() {
@@ -264,6 +235,7 @@ public class UnitySDK {
     public static void setErrorMessage(String errorMessage) {
         UnitySDK.errorMessage = errorMessage;
     }
+
     private static final ServiceConnection connection = new ServiceConnection() {
 
         @Override
@@ -305,5 +277,14 @@ public class UnitySDK {
             UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
         }
     };
+
+    private static int HandleException(Exception exc) {
+        if (null != exc.getMessage()) {
+            setErrorMessage(exc.getMessage());
+            Log.e(TAG, exc.getMessage());
+            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        }
+        return ErrorCodes.UnknownError;
+    }
 
 }
