@@ -8,6 +8,7 @@ import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.CalibrationPoint;
 import com.inseye.shared.communication.CalibrationPointResponse;
 import com.inseye.shared.communication.ICalibrationCallback;
+import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.sun.jna.Pointer;
 
 import java.nio.ByteBuffer;
@@ -66,6 +67,7 @@ public class CalibrationProcedure {
     private final Pointer calibrationStatusPointer;
     private CalibrationStatus calibrationStatus;
     private ICalibrationStatusListener calibrationListener;
+    private IServiceCalibrationCallback serviceCalibrationCallback;
     private final ICalibrationCallback calibrationCallback = new ICalibrationCallback.Stub() {
 
         @Override
@@ -101,12 +103,43 @@ public class CalibrationProcedure {
         setStatus(CalibrationStatus.Ongoing);
     }
 
-    public void setCalibrationPoint(CalibrationPoint calibrationPoint) {
+    private void setCalibrationPoint(CalibrationPoint calibrationPoint) {
         Log.d(UnitySDK.TAG, "next calibration point - x: " + calibrationPoint.x + " y: " + calibrationPoint.y);
         synchronized (buffer) {
             buffer.position(0);
             CALIBRATION_POINT_SERIALIZER.writeToBuffer(calibrationPoint, buffer);
             calibrationPointRequestPointer.write(0, buffer.array(), 0, CALIBRATION_POINT_SERIALIZER.getSizeInBytes());
+        }
+    }
+
+    public void setServiceCalibrationCallback(IServiceCalibrationCallback serviceCalibrationCallback) {
+        this.serviceCalibrationCallback = serviceCalibrationCallback;
+    }
+
+    public ActionResult markReadyForPointDisplay()  {
+        if (null == this.serviceCalibrationCallback)
+            throw new RuntimeException("ServiceCalibrationCallback is null!");
+        CalibrationPoint initialCalibrationPoint = new CalibrationPoint();
+        ActionResult result;
+        try {
+            result = this.serviceCalibrationCallback.readyToRecieveCalibrationPoint(initialCalibrationPoint);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ActionResult.error(e.getMessage());
+        }
+        if (result.successful)
+            setCalibrationPoint(initialCalibrationPoint);
+        return result;
+    }
+
+    public ActionResult abortCalibration() {
+        if (null == this.serviceCalibrationCallback)
+            throw new RuntimeException("ServiceCalibrationCallback is null!");
+        try {
+            return serviceCalibrationCallback.abortCalibrationProcedure();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return ActionResult.error(e.getMessage());
         }
     }
 
