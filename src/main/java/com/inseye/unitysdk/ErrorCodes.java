@@ -12,6 +12,8 @@ public class ErrorCodes {
     public static final int InitializationTimeout = 12;
     // calibration error codes
     public static final int AnotherCalibrationIsOngoing = 20;
+    public static final int NoCalibrationIsOngoing = 21;
+    public static final int CalibrationTimeout = 22;
     // reading gaze data
     public static final int NoValidGazeAvailable = 30;
     // events
