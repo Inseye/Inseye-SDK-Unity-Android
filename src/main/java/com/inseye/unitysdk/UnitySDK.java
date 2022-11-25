@@ -238,6 +238,7 @@ public class UnitySDK {
         if (!sdkState.isInState(SDKState.CALIBRATING))
             return ErrorCodes.NoCalibrationIsOngoing;
         if (null != calibrationProcedure && !calibrationProcedure.isCalibrationFinished()) {
+            sdkState.removeState(SDKState.CALIBRATING);
             ActionResult actionResult = calibrationProcedure.abortCalibration();
             if (!actionResult.successful) {
                 setErrorMessage(actionResult.errorMessage);
