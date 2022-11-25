@@ -12,8 +12,8 @@ import android.util.Log;
 
 import com.inseye.shared.R;
 import com.inseye.shared.communication.ActionResult;
-import com.inseye.shared.communication.CalibrationPoint;
 import com.inseye.shared.communication.IEyetrackerEventListener;
+import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
@@ -192,29 +192,54 @@ public class UnitySDK {
                 sdkState.removeState(SDKState.CALIBRATING);
         };
         calibrationProcedure.setCalibrationStatusListener(listener);
-        CalibrationPoint initialPoint = new CalibrationPoint();
-        ActionResult actionResult = sharedService.startCalibrationProcedure(calibrationProcedure.getCalibrationCallback(), initialPoint);
+        ActionResult actionResult = new ActionResult();
+        IServiceCalibrationCallback serviceCallback = sharedService.startCalibrationProcedure(actionResult, calibrationProcedure.getCalibrationCallback());
         if (!actionResult.successful) {
             setErrorMessage(actionResult.errorMessage);
             return ErrorCodes.UnknownErrorCheckErrorMessage;
         }
-        calibrationProcedure.setCalibrationPoint(initialPoint);
+        calibrationProcedure.setServiceCalibrationCallback(serviceCallback);
         sdkState.addState(SDKState.CALIBRATING);
         return ErrorCodes.Successful;
     }
 
 
     /**
+     * Called by UnitySDK to inform calibration procured that client is ready to display calibration point
+     *
+     * @return one of ErrorCode values
+     */
+    public static int setReadyToDisplayCalibrationPoint() {
+        Log.d(TAG, "setReadyToDisplayCalibrationPoint");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            return ErrorCodes.SDKIsNotConnectedToService;
+        if (!sdkState.isInState(SDKState.CALIBRATING))
+            return ErrorCodes.NoCalibrationIsOngoing;
+        ActionResult result = calibrationProcedure.markReadyForPointDisplay();
+        if (result.successful)
+            return ErrorCodes.Successful;
+        else if (!result.errorMessage.equals("")) {
+            setErrorMessage(result.errorMessage);
+            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        }
+        else
+            return ErrorCodes.UnknownError;
+    }
+
+    /**
      * Called by UnitySKD to abort current calibration
      *
      * @return status code
      */
-    public static int abortCalibrationProcedure() throws RemoteException {
+    public static int abortCalibrationProcedure() {
         Log.d(TAG, "abortCalibrationProcedure");
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
+        if (!sdkState.isInState(SDKState.CALIBRATING))
+            return ErrorCodes.NoCalibrationIsOngoing;
         if (null != calibrationProcedure && !calibrationProcedure.isCalibrationFinished()) {
-            ActionResult actionResult = sharedService.abortCalibrationProcedure();
+            sdkState.removeState(SDKState.CALIBRATING);
+            ActionResult actionResult = calibrationProcedure.abortCalibration();
             if (!actionResult.successful) {
                 setErrorMessage(actionResult.errorMessage);
                 return ErrorCodes.UnknownErrorCheckErrorMessage;
