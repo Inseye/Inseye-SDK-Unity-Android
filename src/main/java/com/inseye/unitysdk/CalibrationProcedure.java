@@ -136,6 +136,7 @@ public class CalibrationProcedure {
         if (null == this.serviceCalibrationCallback)
             throw new RuntimeException("ServiceCalibrationCallback is null!");
         try {
+            setStatus(CalibrationStatus.FinishedFailed);
             return serviceCalibrationCallback.abortCalibrationProcedure();
         } catch (RemoteException e) {
             e.printStackTrace();
