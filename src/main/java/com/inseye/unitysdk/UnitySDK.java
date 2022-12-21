@@ -17,6 +17,7 @@ import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
+import com.inseye.shared.communication.Version;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
 
@@ -246,6 +247,21 @@ public class UnitySDK {
             }
         }
         return ErrorCodes.Successful;
+    }
+
+    /**
+     * Called by UnitySKD to abort current calibration
+     *
+     * @return string serialized versions of firmware and service separated with '\n'
+     */
+    public static String getVersions() throws Exception {
+        Log.d(TAG, "getVersions");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            throw new Exception("SDK is not connected to service");
+        Version serviceVersion = new Version();
+        Version firmwareVersion = new Version();
+        sharedService.getVersions(serviceVersion, firmwareVersion);
+        return serviceVersion.toString() + '\n' + firmwareVersion.toString();
     }
 
     /**
