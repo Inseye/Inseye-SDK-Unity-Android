@@ -12,6 +12,7 @@ import android.util.Log;
 
 import com.inseye.shared.R;
 import com.inseye.shared.communication.ActionResult;
+import com.inseye.shared.communication.Eye;
 import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
@@ -275,6 +276,18 @@ public class UnitySDK {
 
     public static void setErrorMessage(String errorMessage) {
         UnitySDK.errorMessage = errorMessage;
+    }
+
+    /**
+     * Called by UnitySKD to abort current calibration
+     *
+     * @return int representation of dominant eye
+     */
+    public static int getDominantEye() throws RemoteException {
+        Log.d(TAG, "getDominantEye");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            return Eye.BOTH.value;
+        return sharedService.getDominantEye().value;
     }
 
     private static final ServiceConnection connection = new ServiceConnection() {
