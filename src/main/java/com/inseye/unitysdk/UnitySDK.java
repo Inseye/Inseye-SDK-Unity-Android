@@ -327,7 +327,7 @@ public class UnitySDK {
 
         @Override
         public void handleTrackerAvailabilityChanged(TrackerAvailability availability) {
-            Log.d(TAG, "handleTrackerAvailabilityChanged");
+            Log.d(TAG, "handleTrackerAvailabilityChanged: " + availability.toString());
             UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
         }
     };
