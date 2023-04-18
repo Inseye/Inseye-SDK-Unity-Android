@@ -65,6 +65,8 @@ public class CalibrationProcedure {
     private final Pointer calibrationPointRequestPointer;
     private final Pointer calibrationPointResponsePointer;
     private final Pointer calibrationStatusPointer;
+    private final Pointer pointIndexPointer;
+    private int pointIndex;
     private CalibrationStatus calibrationStatus;
     private ICalibrationStatusListener calibrationListener;
     private IServiceCalibrationCallback serviceCalibrationCallback;
@@ -96,19 +98,23 @@ public class CalibrationProcedure {
         }
     };
 
-    public CalibrationProcedure(long calibrationPointRequestPointer, long calibrationPointResponsePointer, long calibrationStatusPointer) {
+    public CalibrationProcedure(long calibrationPointRequestPointer, long calibrationPointResponsePointer, long calibrationStatusPointer, long pointIndexPointer) {
         this.calibrationPointRequestPointer = new Pointer(calibrationPointRequestPointer);
         this.calibrationPointResponsePointer = new Pointer(calibrationPointResponsePointer);
         this.calibrationStatusPointer = new Pointer(calibrationStatusPointer);
+        this.pointIndexPointer = new Pointer(pointIndexPointer);
+        this.pointIndex = 0;
         setStatus(CalibrationStatus.Ongoing);
     }
 
     private void setCalibrationPoint(CalibrationPoint calibrationPoint) {
-        Log.d(UnitySDK.TAG, "next calibration point - x: " + calibrationPoint.x + " y: " + calibrationPoint.y);
+        pointIndex++;
+        Log.d(UnitySDK.TAG, "next calibration point - x: " + calibrationPoint.x + " y: " + calibrationPoint.y + " index: " + pointIndex);
         synchronized (buffer) {
             buffer.position(0);
             CALIBRATION_POINT_SERIALIZER.writeToBuffer(calibrationPoint, buffer);
             calibrationPointRequestPointer.write(0, buffer.array(), 0, CALIBRATION_POINT_SERIALIZER.getSizeInBytes());
+            pointIndexPointer.setInt(0, pointIndex);
         }
     }
 
