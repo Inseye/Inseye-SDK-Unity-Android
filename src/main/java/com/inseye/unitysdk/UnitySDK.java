@@ -180,15 +180,16 @@ public class UnitySDK {
      * @param calibrationRequestPointer  pointer to struct where java can write points to display in unity
      * @param calibrationResponsePointer pointer to struct from which java can read status of display
      * @param calibrationStatusPointer   pointer to int where status calibration status can be updated
+     * @param pointIndexPointer          pointer to int that is incremented each time a new point is presented
      * @return one of ErrorCode values
      */
-    public static int startCalibrationProcedure(long calibrationRequestPointer, long calibrationResponsePointer, long calibrationStatusPointer) throws RemoteException {
+    public static int startCalibrationProcedure(long calibrationRequestPointer, long calibrationResponsePointer, long calibrationStatusPointer, long pointIndexPointer) throws RemoteException {
         Log.d(TAG, "startCalibrationProcedure");
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
         if (sdkState.isInState(SDKState.CALIBRATING))
             return ErrorCodes.AnotherCalibrationIsOngoing;
-        calibrationProcedure = new CalibrationProcedure(calibrationRequestPointer, calibrationResponsePointer, calibrationStatusPointer);
+        calibrationProcedure = new CalibrationProcedure(calibrationRequestPointer, calibrationResponsePointer, calibrationStatusPointer, pointIndexPointer);
         ICalibrationStatusListener listener = (oldStatus, newStatus) -> {
             if (newStatus == CalibrationStatus.FinishedSuccessfully || newStatus == CalibrationStatus.FinishedFailed)
                 sdkState.removeState(SDKState.CALIBRATING);
