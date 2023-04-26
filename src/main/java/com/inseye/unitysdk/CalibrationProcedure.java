@@ -70,7 +70,7 @@ public class CalibrationProcedure {
     private CalibrationStatus calibrationStatus;
     private ICalibrationStatusListener calibrationListener;
     private IServiceCalibrationCallback serviceCalibrationCallback;
-    private final ICalibrationCallback calibrationCallback = new ICalibrationCallback.Stub() {
+    private final ICalibrationCallback calibrationCallback = new ICalibrationCallback.Stub() { // calibration callback invoked by service
 
         @Override
         public CalibrationPointResponse showNextCalibrationPoint(CalibrationPoint nextPoint) throws RemoteException {
@@ -80,7 +80,7 @@ public class CalibrationProcedure {
                 calibrationPointResponsePointer.read(0, buffer.array(), 0, CALIBRATION_RESPONSE_SERIALIZER.getSizeInBytes());
                 buffer.position(0);
                 CALIBRATION_RESPONSE_SERIALIZER.readFromBuffer(calibrationPointResponse, buffer);
-                Log.d(UnitySDK.TAG, "displayed point x: " + calibrationPointResponse.x + " y: " + calibrationPointResponse.y + "tStart: ");
+                Log.d(UnitySDK.TAG, "displayed point x: " + calibrationPointResponse.x + " y: " + calibrationPointResponse.y + " tStart: " + calibrationPointResponse.displayStartMs);
                 // write new calibration point
                 setCalibrationPoint(nextPoint);
             }
