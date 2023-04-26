@@ -36,7 +36,7 @@ public class UnitySDK {
      * @return one of ErrorCodes
      */
     public static int initialize(long stateIntPointer) {
-        Log.d(TAG, "initialize");
+        Log.d(TAG, "initialize, ptr = " + stateIntPointer);
         sdkState.addUnityPointer(new Pointer(stateIntPointer));
         if (sdkState.isInState(SDKState.CONNECTED)) {
             return ErrorCodes.SDKAlreadyConnected;
