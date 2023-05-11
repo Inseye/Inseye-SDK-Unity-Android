@@ -291,6 +291,18 @@ public class UnitySDK {
         return sharedService.getDominantEye().value;
     }
 
+    /**
+     * Called from UnitySDK to get information if eye tracker is calibrated
+     *
+     * @return true if eye tracker is calibrated according to service
+     */
+    public static boolean isEyeTrackerCalibrated() throws RemoteException {
+        Log.d(TAG, "isEyeTrackerCalibrated");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            return false;
+        return sharedService.isCalibrated();
+    }
+
     private static final ServiceConnection connection = new ServiceConnection() {
 
         @Override
