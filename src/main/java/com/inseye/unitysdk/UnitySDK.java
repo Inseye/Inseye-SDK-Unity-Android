@@ -17,6 +17,7 @@ import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
+import com.inseye.shared.communication.StringActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
 import com.sun.jna.Pointer;
@@ -224,8 +225,7 @@ public class UnitySDK {
         else if (!result.errorMessage.equals("")) {
             setErrorMessage(result.errorMessage);
             return ErrorCodes.UnknownErrorCheckErrorMessage;
-        }
-        else
+        } else
             return ErrorCodes.UnknownError;
     }
 
@@ -302,6 +302,40 @@ public class UnitySDK {
             return false;
         return sharedService.isCalibrated();
     }
+
+    /**
+     * Called from UnitySDK to start recording raw data.
+     * Part of internal API.
+     */
+    public static int beginRecordingRawData() throws RemoteException {
+        Log.d(TAG, "beginRecordingRawData");
+        if (!sdkState.isInState(SDKState.CONNECTED))
+            return ErrorCodes.SDKIsNotConnectedToService;
+        ActionResult actionResult = sharedService.beginRecordingRawData();
+        if (actionResult.successful)
+            return ErrorCodes.Successful;
+        else {
+            setErrorMessage(actionResult.errorMessage);
+            return ErrorCodes.UnknownErrorCheckErrorMessage;
+        }
+    }
+
+    /**
+     * Called from UnitySDK to stop recording raw data.
+     * Part of internal API.
+     */
+    public static String endRecordingRawData() throws Exception {
+        Log.d(TAG, "endRecordingRawData");
+        if(!sdkState.isInState(SDKState.CONNECTED))
+            throw new Exception("SDK is not connected to service");
+        StringActionResult actionResult = sharedService.endRecordingRawData();
+        if (!actionResult.success) {
+            setErrorMessage(actionResult.errorMessage);
+            return "";
+        }
+        return actionResult.value;
+    }
+
 
     private static final ServiceConnection connection = new ServiceConnection() {
 
