@@ -23,6 +23,8 @@ import com.inseye.shared.communication.Version;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
 
+import java.util.Arrays;
+
 public class UnitySDK {
     public static final String TAG = "AndroidUnitySDK";
     private static final SDKState sdkState = new SDKState();
@@ -36,8 +38,8 @@ public class UnitySDK {
      *
      * @return one of ErrorCodes
      */
-    public static int initialize(long stateIntPointer) {
-        Log.d(TAG, "initialize, ptr = " + stateIntPointer);
+    public static int initialize(long stateIntPointer, long timeout) {
+        Log.d(TAG, "initialize, timeout = " + timeout + " pointer = " + stateIntPointer);
         sdkState.addUnityPointer(new Pointer(stateIntPointer));
         if (sdkState.isInState(SDKState.CONNECTED)) {
             return ErrorCodes.SDKAlreadyConnected;
@@ -54,12 +56,17 @@ public class UnitySDK {
             return ErrorCodes.FailedToBindToService;
         synchronized (waitForServiceConnectionLock) {
             try {
-                waitForServiceConnectionLock.wait(1000); // TODO: test in real world how long timeout is manageable
                 if (!sdkState.isInState(SDKState.CONNECTED)) {
-                    Log.e(TAG, "Failed to initialize SKD due to timeout");
+                    Log.d(TAG, "Service is not connect, waiting.");
+                    waitForServiceConnectionLock.wait(timeout); // TODO: test in real world how long timeout is manageable
+                }
+                if (!sdkState.isInState(SDKState.CONNECTED)) {
+                    sdkState.clearUnityPointer();
+                    Log.e(TAG, "Failed to initialize SKD after timeout.");
                     return ErrorCodes.InitializationTimeout;
                 }
             } catch (Exception e) {
+                sdkState.clearUnityPointer();
                 return HandleException(e);
             }
         }
@@ -343,8 +350,8 @@ public class UnitySDK {
         public void onServiceConnected(ComponentName name, IBinder service) {
             Log.d(TAG, "onServiceConnected");
             sharedService = ISharedService.Stub.asInterface(service);
-            sdkState.setState(SDKState.CONNECTED);
             synchronized (waitForServiceConnectionLock) {
+                sdkState.setState(SDKState.CONNECTED);
                 waitForServiceConnectionLock.notifyAll();
             }
         }
