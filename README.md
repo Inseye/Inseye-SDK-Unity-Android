@@ -1,2 +1,11 @@
-# Developer Notes
-Every developer must change option in [build.gradle](build.gradle) in line `40` and provide path to proper Unity java classes archive.
+# About
+This reposition contains Java module for Unity SDK.
+
+# License
+This repository is part of Inseye Software Development Kit.
+
+By using content of this repository you agree SDK [License](LICENSE)
+
+# Structure
+
+* `Shared` directory contains reference to [Inseye SDK Android API](https://github.com/Inseye/Inseye-Unity-SDK-Android)
