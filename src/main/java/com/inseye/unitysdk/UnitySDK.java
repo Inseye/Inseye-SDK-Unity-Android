@@ -26,13 +26,10 @@ import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
-import com.inseye.shared.communication.StringActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
-
-import java.util.Arrays;
 
 public class UnitySDK {
     public static final String TAG = "AndroidUnitySDK";
@@ -99,11 +96,22 @@ public class UnitySDK {
         return ErrorCodes.Successful;
     }
 
+    /**
+     * Called by UnitySDK to get gaze data udp socket
+     *
+     * @return eye tracker availability
+     */
     public static int getEyeTrackerAvailability() throws Exception {
         Log.d(TAG, "getEyeTrackerAvailability");
         if (!sdkState.isInState(SDKState.CONNECTED))
             throw new Exception("SDK is not connected to service");
-        return sharedService.getTrackerAvailability().ordinal();
+        TrackerAvailability availability =  sharedService.getTrackerAvailability();
+        // backward compatible deprecation handling
+        if (availability == TrackerAvailability.FirmwareUpdate)
+            return TrackerAvailability.Unknown.value;
+        if (availability == TrackerAvailability.RawData)
+            return TrackerAvailability.Unknown.value;
+        return availability.value;
     }
 
     /**
@@ -364,6 +372,9 @@ public class UnitySDK {
 
         @Override
         public void handleTrackerAvailabilityChanged(TrackerAvailability availability) {
+            // backward compatible deprecation handling
+            if (availability == TrackerAvailability.FirmwareUpdate || availability == TrackerAvailability.RawData)
+                availability = TrackerAvailability.Unknown;
             Log.d(TAG, "handleTrackerAvailabilityChanged: " + availability.toString());
             UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
         }
