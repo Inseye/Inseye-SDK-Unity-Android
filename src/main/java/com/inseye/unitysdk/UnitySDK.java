@@ -1,3 +1,12 @@
+/*
+ * Last edit: 06.10.2023, 10:54
+ * Copyright (c) Inseye Inc.
+ *
+ * This file is part of Inseye Software Development Kit subject to Inseye SDK License
+ * See  https://github.com/Inseye/Licenses/blob/master/SDKLicense.txt.
+ * All other rights reserved.
+ */
+
 package com.inseye.unitysdk;
 
 import android.app.Activity;
@@ -38,9 +47,9 @@ public class UnitySDK {
      *
      * @return one of ErrorCodes
      */
-    public static int initialize(long stateIntPointer, long timeout) {
+    public static int initialize(long stateIntPointer, long timeout) throws Exception {
         Log.d(TAG, "initialize, timeout = " + timeout + " pointer = " + stateIntPointer);
-        sdkState.addUnityPointer(new Pointer(stateIntPointer));
+        sdkState.addUnityPointer(stateIntPointer);
         if (sdkState.isInState(SDKState.CONNECTED)) {
             return ErrorCodes.SDKAlreadyConnected;
         }
@@ -61,25 +70,28 @@ public class UnitySDK {
                     waitForServiceConnectionLock.wait(timeout); // TODO: test in real world how long timeout is manageable
                 }
                 if (!sdkState.isInState(SDKState.CONNECTED)) {
-                    sdkState.clearUnityPointer();
+                    sdkState.clearUnityPointer(stateIntPointer);
                     Log.e(TAG, "Failed to initialize SKD after timeout.");
                     return ErrorCodes.InitializationTimeout;
                 }
             } catch (Exception e) {
-                sdkState.clearUnityPointer();
+                sdkState.clearUnityPointer(stateIntPointer);
                 return HandleException(e);
             }
         }
         return ErrorCodes.Successful;
     }
 
-    public static int dispose() {
+    public static int dispose(long stateIntPointer) {
         Log.d(TAG, "dispose");
         if (sdkState.isInState(SDKState.NOT_CONNECTED))
             return ErrorCodes.Successful;
+        if (sdkState.getListenersCount() > 1)
+            return ErrorCodes.Successful;
         sdkState.setState(SDKState.NOT_CONNECTED);
-        sdkState.clearUnityPointer();
+        sdkState.clearUnityPointer(stateIntPointer);
         try {
+            Log.d(TAG, "UnitySDK unbound from service");
             UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
         } catch (Exception e) {
             return HandleException(e);
@@ -131,10 +143,14 @@ public class UnitySDK {
         if (sdkState.isInState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM)) {
             try {
                 sharedService.stopStreamingGazeData();
-                sdkState.removeState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
                 return ErrorCodes.Successful;
             } catch (Exception exception) {
+                Log.e(TAG, "An error occurred when stopping eye tracking data stream.");
+                exception.printStackTrace();
                 return HandleException(exception);
+            }
+            finally {
+                sdkState.removeState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
             }
         }
         return ErrorCodes.Successful;
@@ -270,7 +286,7 @@ public class UnitySDK {
         Version serviceVersion = new Version();
         Version firmwareVersion = new Version();
         sharedService.getVersions(serviceVersion, firmwareVersion);
-        return serviceVersion.toString() + '\n' + firmwareVersion.toString();
+        return serviceVersion.toString() + '\n' + firmwareVersion;
     }
 
     /**
@@ -308,39 +324,6 @@ public class UnitySDK {
         if (!sdkState.isInState(SDKState.CONNECTED))
             return false;
         return sharedService.isCalibrated();
-    }
-
-    /**
-     * Called from UnitySDK to start recording raw data.
-     * Part of internal API.
-     */
-    public static int beginRecordingRawData() throws RemoteException {
-        Log.d(TAG, "beginRecordingRawData");
-        if (!sdkState.isInState(SDKState.CONNECTED))
-            return ErrorCodes.SDKIsNotConnectedToService;
-        ActionResult actionResult = sharedService.beginRecordingRawData();
-        if (actionResult.successful)
-            return ErrorCodes.Successful;
-        else {
-            setErrorMessage(actionResult.errorMessage);
-            return ErrorCodes.UnknownErrorCheckErrorMessage;
-        }
-    }
-
-    /**
-     * Called from UnitySDK to stop recording raw data.
-     * Part of internal API.
-     */
-    public static String endRecordingRawData() throws Exception {
-        Log.d(TAG, "endRecordingRawData");
-        if(!sdkState.isInState(SDKState.CONNECTED))
-            throw new Exception("SDK is not connected to service");
-        StringActionResult actionResult = sharedService.endRecordingRawData();
-        if (!actionResult.success) {
-            setErrorMessage(actionResult.errorMessage);
-            return "";
-        }
-        return actionResult.value;
     }
 
 

@@ -1,3 +1,12 @@
+/*
+ * Last edit: 20.06.2023, 12:10
+ * Copyright (c) Inseye Inc.
+ *
+ * This file is part of Inseye Software Development Kit subject to Inseye SDK License
+ * See  https://github.com/Inseye/Licenses/blob/master/SDKLicense.txt.
+ * All other rights reserved.
+ */
+
 package com.inseye.unitysdk;
 
 public class ErrorCodes {

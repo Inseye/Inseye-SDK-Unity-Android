@@ -1,11 +1,21 @@
+/*
+ * Last edit: 09.10.2023, 11:58
+ * Copyright (c) Inseye Inc.
+ *
+ * This file is part of Inseye Software Development Kit subject to Inseye SDK License
+ * See  https://github.com/Inseye/Licenses/blob/master/SDKLicense.txt.
+ * All other rights reserved.
+ */
 package com.inseye.unitysdk;
 
 import android.util.Log;
 
 import com.sun.jna.Pointer;
 
+import java.util.HashMap;
+
 public class SDKState {
-    private Pointer stateIntPointer;
+    private final HashMap<Long, Pointer> cSharpPointerToJavaPointer;
     private static class ConstSDKState {
         private final int value;
         ConstSDKState(int initialValue) {
@@ -21,6 +31,7 @@ public class SDKState {
     private int value;
     public SDKState() {
         value = 0;
+        cSharpPointerToJavaPointer = new HashMap<>();
     }
 
     public boolean isInState(ConstSDKState sdkState) {
@@ -33,32 +44,41 @@ public class SDKState {
 
     public void addState(ConstSDKState sdkState) {
         value |= sdkState.value;
-        updatePointer();
+        updatePointers();
     }
 
     public void removeState(ConstSDKState sdkState) {
         value &= (~sdkState.value);
-        updatePointer();
+        updatePointers();
     }
 
     public void setState(ConstSDKState sdkState) {
         value = sdkState.value;
-        updatePointer();
+        updatePointers();
     }
 
-    public void addUnityPointer(Pointer stateIntPointer) {
-        this.stateIntPointer = stateIntPointer;
-        updatePointer();
+    public void addUnityPointer(long stateIntPointer) throws Exception {
+        Pointer javaPointer = new Pointer(stateIntPointer);
+        Long cSharpPointer = stateIntPointer;
+        if (cSharpPointerToJavaPointer.containsKey(cSharpPointer))
+            throw new Exception("Attempt to add duplicate pointer");
+        cSharpPointerToJavaPointer.put(cSharpPointer, javaPointer);
+        updatePointers();
     }
 
-    public void clearUnityPointer() {
-        stateIntPointer = null;
+    public void clearUnityPointer(long stateIntPointer) {
+        cSharpPointerToJavaPointer.remove(stateIntPointer);
     }
 
-    private void updatePointer() {
-        if (stateIntPointer == null)
-            return;
-        stateIntPointer.setInt(0, value);
+    private void updatePointers() {
         Log.i(UnitySDK.TAG, "Current state: " + value);
+        if (cSharpPointerToJavaPointer.isEmpty())
+            return;
+        for (Pointer pointer : cSharpPointerToJavaPointer.values())
+            pointer.setInt(0, value);
+    }
+
+    public int getListenersCount() {
+        return cSharpPointerToJavaPointer.size();
     }
 }
