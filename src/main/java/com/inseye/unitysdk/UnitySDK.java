@@ -105,13 +105,7 @@ public class UnitySDK {
         Log.d(TAG, "getEyeTrackerAvailability");
         if (!sdkState.isInState(SDKState.CONNECTED))
             throw new Exception("SDK is not connected to service");
-        TrackerAvailability availability =  sharedService.getTrackerAvailability();
-        // backward compatible deprecation handling
-        if (availability == TrackerAvailability.FirmwareUpdate)
-            return TrackerAvailability.Unknown.value;
-        if (availability == TrackerAvailability.RawData)
-            return TrackerAvailability.Unknown.value;
-        return availability.value;
+        return sharedService.getTrackerAvailability().value;
     }
 
     /**
@@ -373,10 +367,8 @@ public class UnitySDK {
         @Override
         public void handleTrackerAvailabilityChanged(TrackerAvailability availability) {
             // backward compatible deprecation handling
-            if (availability == TrackerAvailability.FirmwareUpdate || availability == TrackerAvailability.RawData)
-                availability = TrackerAvailability.Unknown;
             Log.d(TAG, "handleTrackerAvailabilityChanged: " + availability.toString());
-            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.ordinal()));
+            UnityPlayer.UnitySendMessage(gameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.value));
         }
     };
 
