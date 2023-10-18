@@ -46,52 +46,56 @@ public class UnitySDK {
      */
     public static int initialize(long stateIntPointer, long timeout) throws Exception {
         Log.d(TAG, "initialize, timeout = " + timeout + " pointer = " + stateIntPointer);
-        sdkState.addUnityPointer(stateIntPointer);
-        if (sdkState.isInState(SDKState.CONNECTED)) {
-            return ErrorCodes.SDKAlreadyConnected;
-        }
-        Activity currentActivity = UnityPlayer.currentActivity;
-        Resources res = currentActivity.getResources();
-
-        Intent serviceIntent = new Intent();
-        ComponentName component = new ComponentName(res.getString(R.string.service_package_name), res.getString(R.string.service_class_name));
-        serviceIntent.setComponent(component);
-
-        boolean connectedSuccessfully = currentActivity.getApplicationContext().bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE);
-        if (!connectedSuccessfully)
-            return ErrorCodes.FailedToBindToService;
-        synchronized (waitForServiceConnectionLock) {
-            try {
-                if (!sdkState.isInState(SDKState.CONNECTED)) {
-                    Log.d(TAG, "Service is not connect, waiting.");
-                    waitForServiceConnectionLock.wait(timeout); // TODO: test in real world how long timeout is manageable
-                }
-                if (!sdkState.isInState(SDKState.CONNECTED)) {
-                    sdkState.clearUnityPointer(stateIntPointer);
-                    Log.e(TAG, "Failed to initialize SKD after timeout.");
-                    return ErrorCodes.InitializationTimeout;
-                }
-            } catch (Exception e) {
-                sdkState.clearUnityPointer(stateIntPointer);
-                return HandleException(e);
+        sdkState.setUnityPointer(stateIntPointer);
+        try {
+            if (sdkState.isInState(SDKState.CONNECTED)) {
+                return ErrorCodes.SDKAlreadyConnected;
             }
+            Activity currentActivity = UnityPlayer.currentActivity;
+            Resources res = currentActivity.getResources();
+
+            Intent serviceIntent = new Intent();
+            ComponentName component = new ComponentName(res.getString(R.string.service_package_name), res.getString(R.string.service_class_name));
+            serviceIntent.setComponent(component);
+
+            boolean connectedSuccessfully = currentActivity.getApplicationContext().bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE);
+            if (!connectedSuccessfully)
+                return ErrorCodes.FailedToBindToService;
+            synchronized (waitForServiceConnectionLock) {
+                try {
+                    if (!sdkState.isInState(SDKState.CONNECTED)) {
+                        Log.d(TAG, "Service is not connect, waiting.");
+                        waitForServiceConnectionLock.wait(timeout); // TODO: test in real world how long timeout is manageable
+                    }
+                    if (!sdkState.isInState(SDKState.CONNECTED)) {
+                        Log.e(TAG, "Failed to initialize SKD after timeout.");
+                        return ErrorCodes.InitializationTimeout;
+                    }
+                } catch (Exception e) {
+                    return HandleException(e);
+                }
+            }
+            return ErrorCodes.Successful;
         }
-        return ErrorCodes.Successful;
+        finally {
+            if (!sdkState.isInState(SDKState.CONNECTED))
+                sdkState.clearUnityPointer();
+        }
     }
 
     public static int dispose(long stateIntPointer) {
         Log.d(TAG, "dispose");
-        if (sdkState.isInState(SDKState.NOT_CONNECTED))
-            return ErrorCodes.Successful;
-        if (sdkState.getListenersCount() > 1)
-            return ErrorCodes.Successful;
-        sdkState.setState(SDKState.NOT_CONNECTED);
-        sdkState.clearUnityPointer(stateIntPointer);
         try {
+            if (sdkState.isInState(SDKState.NOT_CONNECTED))
+                return ErrorCodes.Successful;
+            sdkState.setState(SDKState.NOT_CONNECTED);
             Log.d(TAG, "UnitySDK unbound from service");
             UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
         } catch (Exception e) {
             return HandleException(e);
+        }
+        finally {
+            sdkState.clearUnityPointer();
         }
         return ErrorCodes.Successful;
     }

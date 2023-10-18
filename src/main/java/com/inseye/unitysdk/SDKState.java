@@ -15,7 +15,7 @@ import com.sun.jna.Pointer;
 import java.util.HashMap;
 
 public class SDKState {
-    private final HashMap<Long, Pointer> cSharpPointerToJavaPointer;
+    private Pointer cSharpPointer;
     private static class ConstSDKState {
         private final int value;
         ConstSDKState(int initialValue) {
@@ -31,7 +31,6 @@ public class SDKState {
     private int value;
     public SDKState() {
         value = 0;
-        cSharpPointerToJavaPointer = new HashMap<>();
     }
 
     public boolean isInState(ConstSDKState sdkState) {
@@ -44,41 +43,36 @@ public class SDKState {
 
     public void addState(ConstSDKState sdkState) {
         value |= sdkState.value;
-        updatePointers();
+        updatePointer();
     }
 
     public void removeState(ConstSDKState sdkState) {
         value &= (~sdkState.value);
-        updatePointers();
+        updatePointer();
     }
 
     public void setState(ConstSDKState sdkState) {
         value = sdkState.value;
-        updatePointers();
+        updatePointer();
     }
 
-    public void addUnityPointer(long stateIntPointer) throws Exception {
+    public void setUnityPointer(long stateIntPointer) throws Exception {
         Pointer javaPointer = new Pointer(stateIntPointer);
-        Long cSharpPointer = stateIntPointer;
-        if (cSharpPointerToJavaPointer.containsKey(cSharpPointer))
-            throw new Exception("Attempt to add duplicate pointer");
-        cSharpPointerToJavaPointer.put(cSharpPointer, javaPointer);
-        updatePointers();
+        if (cSharpPointer != null)
+            Log.e(UnitySDK.TAG, "CSharpPointer is not null, there is error in SDK logic.");
+        cSharpPointer = new Pointer(stateIntPointer);
+        updatePointer();
     }
 
-    public void clearUnityPointer(long stateIntPointer) {
-        cSharpPointerToJavaPointer.remove(stateIntPointer);
+    public void clearUnityPointer() {
+        cSharpPointer = null;
     }
 
-    private void updatePointers() {
+    private void updatePointer() {
         Log.i(UnitySDK.TAG, "Current state: " + value);
-        if (cSharpPointerToJavaPointer.isEmpty())
+        if (cSharpPointer == null)
             return;
-        for (Pointer pointer : cSharpPointerToJavaPointer.values())
-            pointer.setInt(0, value);
+        cSharpPointer.setInt(0, value);
     }
 
-    public int getListenersCount() {
-        return cSharpPointerToJavaPointer.size();
-    }
 }
