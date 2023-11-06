@@ -1,5 +1,5 @@
 /*
- * Last edit: 09.10.2023, 11:58
+ * Last edit: 06.11.2023, 10:57
  * Copyright (c) Inseye Inc.
  *
  * This file is part of Inseye Software Development Kit subject to Inseye SDK License
@@ -10,12 +10,10 @@ package com.inseye.unitysdk;
 
 import android.util.Log;
 
-import com.sun.jna.Pointer;
-
-import java.util.HashMap;
+import com.unity3d.player.UnityPlayer;
 
 public class SDKState {
-    private Pointer cSharpPointer;
+    private String listenerGameObjectName;
     private static class ConstSDKState {
         private final int value;
         ConstSDKState(int initialValue) {
@@ -43,36 +41,33 @@ public class SDKState {
 
     public void addState(ConstSDKState sdkState) {
         value |= sdkState.value;
-        updatePointer();
+        updateUnityListener();
     }
 
     public void removeState(ConstSDKState sdkState) {
         value &= (~sdkState.value);
-        updatePointer();
+        updateUnityListener();
     }
 
     public void setState(ConstSDKState sdkState) {
         value = sdkState.value;
-        updatePointer();
+        updateUnityListener();
     }
 
-    public void setUnityPointer(long stateIntPointer) throws Exception {
-        Pointer javaPointer = new Pointer(stateIntPointer);
-        if (cSharpPointer != null)
-            Log.e(UnitySDK.TAG, "CSharpPointer is not null, there is error in SDK logic.");
-        cSharpPointer = new Pointer(stateIntPointer);
-        updatePointer();
+    public void setUnityListener(String gameObjectName) throws Exception {
+        listenerGameObjectName = gameObjectName;
+        updateUnityListener();
     }
 
-    public void clearUnityPointer() {
-        cSharpPointer = null;
+    public void clearUnityGameObject() {
+        listenerGameObjectName = null;
     }
 
-    private void updatePointer() {
+    private void updateUnityListener() {
         Log.i(UnitySDK.TAG, "Current state: " + value);
-        if (cSharpPointer == null)
+        if (listenerGameObjectName == null)
             return;
-        cSharpPointer.setInt(0, value);
+        UnityPlayer.UnitySendMessage(listenerGameObjectName, "InvokeSDKStateChanged", Integer.toString(value));
     }
 
 }
