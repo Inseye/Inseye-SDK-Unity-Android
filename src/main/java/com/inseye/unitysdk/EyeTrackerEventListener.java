@@ -8,8 +8,6 @@
  */
 
 package com.inseye.unitysdk;
-
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -17,7 +15,7 @@ import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.unity3d.player.UnityPlayer;
 
-public class EyeTrackerEventListener implements IEyetrackerEventListener {
+public class EyeTrackerEventListener extends IEyetrackerEventListener.Stub {
     private final String listenerGameObjectName;
     public EyeTrackerEventListener(String listenerGameObjectName) {
         this.listenerGameObjectName = listenerGameObjectName;
@@ -30,10 +28,5 @@ public class EyeTrackerEventListener implements IEyetrackerEventListener {
     @Override
     public void handleTrackerAvailabilityChanged(TrackerAvailability availability) throws RemoteException {
         setTrackerAvailability(availability);
-    }
-
-    @Override
-    public IBinder asBinder() {
-        return (IBinder) this;
     }
 }

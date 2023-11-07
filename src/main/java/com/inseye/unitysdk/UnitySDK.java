@@ -1,5 +1,5 @@
 /*
- * Last edit: 06.11.2023, 10:30
+ * Last edit: 06.11.2023, 15:33
  * Copyright (c) Inseye Inc.
  *
  * This file is part of Inseye Software Development Kit subject to Inseye SDK License
@@ -14,6 +14,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.os.Debug;
+import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -25,7 +27,9 @@ import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
+import com.inseye.shared.utils.NullBindingDelegate;
 import com.inseye.shared.utils.PluggableServiceConnection;
+import com.inseye.shared.utils.ServiceConnectedDelegate;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
 
@@ -40,8 +44,8 @@ public class UnitySDK {
     private static ISharedService sharedService;
     private static EyeTrackerEventListener eventListener;
     private static CalibrationProcedure calibrationProcedure;
-    private final static Object waitForServiceConnectionLock = new Object();
     private static final PluggableServiceConnection connection = new PluggableServiceConnection();
+    private static final Object lockObject = new Object();
 
     static {
         resetConnectionObject();
@@ -54,7 +58,7 @@ public class UnitySDK {
      * @return one of ErrorCodes
      */
     public static int initialize(String listenerGameObjectName, long timeout) throws Exception {
-        Log.d(TAG, "initialize, timeout = " + timeout + "callback object name = " + listenerGameObjectName);
+        Log.i(TAG, "initialize, timeout = " + timeout + "callback object name = " + listenerGameObjectName);
         sdkState.setUnityListener(listenerGameObjectName);
         eventListener = new EyeTrackerEventListener(listenerGameObjectName);
 
@@ -62,13 +66,21 @@ public class UnitySDK {
             return ErrorCodes.SDKAlreadyConnected;
         }
         Activity currentActivity = UnityPlayer.currentActivity;
+        sharedService = null;
         try {
-            CompletableFuture<ISharedService> future = new CompletableFuture<>();
             connection.setServiceConnectedDelegate((name, service) -> {
-                future.complete(ISharedService.Stub.asInterface(service));
+                Log.d(TAG, "Service connected during initialization.");
+                synchronized (lockObject) {
+                    sharedService = ISharedService.Stub.asInterface(service);
+                    lockObject.notifyAll();
+                }
             });
             connection.setNullBindingDelegate((name -> {
-                future.completeExceptionally(new Exception("Null binding exception"));
+                Log.e(TAG, "Service connected during initialization with null binding.");
+                synchronized (lockObject) {
+                    sharedService = null;
+                    lockObject.notifyAll();
+                }
             }));
             boolean connectedSuccessfully = currentActivity.getApplicationContext()
                     .bindService(createBindToServiceIntent(currentActivity),
@@ -76,11 +88,15 @@ public class UnitySDK {
             if (!connectedSuccessfully)
                 return ErrorCodes.FailedToBindToService;
             try {
-                sharedService = future.get(timeout, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException timeoutException) {
-                return ErrorCodes.InitializationTimeout;
-            }
-            finally {
+                synchronized (lockObject) {
+                    if (null == sharedService)
+                        lockObject.wait(timeout);
+                    if (null == sharedService)
+                        return ErrorCodes.InitializationTimeout;
+                }
+            } catch (Exception exception) {
+                return HandleException(exception);
+            } finally {
                 resetConnectionObject();
             }
             connection.setServiceDisconnectedDelegate((name) -> {
@@ -122,6 +138,7 @@ public class UnitySDK {
                 Activity unityActivity = UnityPlayer.currentActivity;
                 unityActivity.getApplicationContext().unbindService(connection);
             });
+            sdkState.setState(SDKState.CONNECTED);
             return ErrorCodes.Successful;
         } catch (Exception e) {
             return HandleException(e);
@@ -174,11 +191,11 @@ public class UnitySDK {
             return ErrorCodes.SDKIsNotConnectedToService;
         try {
             IntActionResult portResult = sharedService.startStreamingGazeData();
-            sdkState.addState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
             if (!portResult.success) {
                 setErrorMessage(portResult.errorMessage);
                 return ErrorCodes.UnknownErrorCheckErrorMessage;
             } else {
+                sdkState.addState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
                 Pointer pointer = new Pointer(portIntPointer);
                 pointer.setInt(0, portResult.value);
                 return ErrorCodes.Successful;
@@ -388,16 +405,16 @@ public class UnitySDK {
 
     private static void resetConnectionObject() {
         connection.setServiceConnectedDelegate((name, service) -> {
-            Log.d(TAG, "Default handler for: onServiceConnected");
+            Log.i(TAG, "Default handler for: onServiceConnected");
         });
         connection.setBindingDiedDelegate((componentName) -> {
-            Log.d(TAG, "Default handler for: onBindingDied");
+            Log.i(TAG, "Default handler for: onBindingDied");
         });
         connection.setNullBindingDelegate((componentName) -> {
-            Log.d(TAG, "Default handler for: onNullBinding");
+            Log.i(TAG, "Default handler for: onNullBinding");
         });
         connection.setServiceDisconnectedDelegate((componentName) -> {
-            Log.d(TAG, "Default handler for: onServiceDisconnected");
+            Log.i(TAG, "Default handler for: onServiceDisconnected");
         });
     }
 
