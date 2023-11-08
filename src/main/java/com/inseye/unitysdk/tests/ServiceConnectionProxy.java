@@ -55,6 +55,8 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     public ServiceConnectionProxy(IPluggableServiceConnection serviceConnection, ISharedService serviceImplementation)
     {
         this.serviceConnection = serviceConnection;
+        if (null != serviceImplementation)
+            binder = serviceImplementation.asBinder();
         this.serviceImplementation = serviceImplementation;
     }
 
@@ -120,21 +122,6 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     @Override
     public Eye getDominantEye() throws RemoteException {
         return serviceImplementation.getDominantEye();
-    }
-
-    @Override
-    public boolean isCalibrated() throws RemoteException {
-        return serviceImplementation.isCalibrated();
-    }
-
-    @Override
-    public ActionResult beginRecordingRawData() throws RemoteException {
-        return serviceImplementation.beginRecordingRawData();
-    }
-
-    @Override
-    public StringActionResult endRecordingRawData() throws RemoteException {
-        return serviceImplementation.endRecordingRawData();
     }
 
     @Override

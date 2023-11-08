@@ -12,6 +12,8 @@ package com.inseye.unitysdk;
 import android.os.RemoteException;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import com.inseye.shared.IByteSerializer;
 import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.CalibrationPoint;
@@ -76,6 +78,7 @@ public class CalibrationProcedure {
     private final Pointer calibrationStatusPointer;
     private final Pointer pointIndexPointer;
     private int pointIndex;
+    private String errorMessage;
     private CalibrationStatus calibrationStatus;
     private ICalibrationStatusListener calibrationListener;
     private IServiceCalibrationCallback serviceCalibrationCallback;
@@ -99,21 +102,21 @@ public class CalibrationProcedure {
         @Override
         public void finishCalibration(ActionResult calibrationResult) throws RemoteException {
             if (calibrationResult.successful)
-                setStatus(CalibrationStatus.FinishedSuccessfully);
+                setStatus(CalibrationStatus.FinishedSuccessfully, null);
             else {
-                UnitySDK.setErrorMessage(calibrationResult.errorMessage);
-                setStatus(CalibrationStatus.FinishedFailed);
+                setStatus(CalibrationStatus.FinishedFailed, calibrationResult.errorMessage);
             }
         }
     };
 
-    public CalibrationProcedure(long calibrationPointRequestPointer, long calibrationPointResponsePointer, long calibrationStatusPointer, long pointIndexPointer) {
+    CalibrationProcedure(long calibrationPointRequestPointer, long calibrationPointResponsePointer, long calibrationStatusPointer, long pointIndexPointer) {
         this.calibrationPointRequestPointer = new Pointer(calibrationPointRequestPointer);
         this.calibrationPointResponsePointer = new Pointer(calibrationPointResponsePointer);
         this.calibrationStatusPointer = new Pointer(calibrationStatusPointer);
         this.pointIndexPointer = new Pointer(pointIndexPointer);
         this.pointIndex = 0;
-        setStatus(CalibrationStatus.Ongoing);
+        this.calibrationStatus = CalibrationStatus.Ongoing;
+        setStatus(CalibrationStatus.Ongoing, null);
     }
 
     private void setCalibrationPoint(CalibrationPoint calibrationPoint) {
@@ -127,53 +130,80 @@ public class CalibrationProcedure {
         }
     }
 
-    public void setServiceCalibrationCallback(IServiceCalibrationCallback serviceCalibrationCallback) {
+    void setServiceCalibrationCallback(IServiceCalibrationCallback serviceCalibrationCallback) {
         this.serviceCalibrationCallback = serviceCalibrationCallback;
     }
 
-    public ActionResult markReadyForPointDisplay()  {
+    /*
+     * Called from Unity.
+     */
+    public void markReadyForPointDisplay()  {
         if (null == this.serviceCalibrationCallback)
             throw new RuntimeException("ServiceCalibrationCallback is null!");
         CalibrationPoint initialCalibrationPoint = new CalibrationPoint();
         ActionResult result;
         try {
             result = this.serviceCalibrationCallback.readyToRecieveCalibrationPoint(initialCalibrationPoint);
+            if (!result.successful)
+                setStatus(CalibrationStatus.FinishedFailed, result.errorMessage);
+            else
+                setCalibrationPoint(initialCalibrationPoint);
         } catch (Exception e) {
             e.printStackTrace();
-            return ActionResult.error(e.getMessage());
         }
-        if (result.successful)
-            setCalibrationPoint(initialCalibrationPoint);
-        return result;
     }
 
-    public ActionResult abortCalibration() {
+    void onServiceDisconnected() {
+        if (calibrationStatus != CalibrationStatus.Ongoing)
+            return;
+        setStatus(CalibrationStatus.FinishedFailed, "Service disconnected.");
+    }
+
+    /*
+     * Called from Unity.
+     */
+    public void abortCalibration() {
+        if (isCalibrationFinished())
+            return;
         if (null == this.serviceCalibrationCallback)
             throw new RuntimeException("ServiceCalibrationCallback is null!");
+        String optionalErrorMessage = null;
         try {
-            setStatus(CalibrationStatus.FinishedFailed);
-            return serviceCalibrationCallback.abortCalibrationProcedure();
+            ActionResult result = serviceCalibrationCallback.abortCalibrationProcedure();
+            if (!result.successful)
+                optionalErrorMessage = result.errorMessage;
         } catch (RemoteException e) {
             e.printStackTrace();
-            return ActionResult.error(e.getMessage());
+        }
+        finally {
+            setStatus(CalibrationStatus.FinishedFailed, optionalErrorMessage);
         }
     }
+    /*
+     * Called from Unity.
+     */
+    public String readOptionalErrorMessage() {
+        return errorMessage;
+    }
 
-    public ICalibrationCallback getCalibrationCallback() {
+    ICalibrationCallback getCalibrationCallback() {
         return calibrationCallback;
     }
 
-    public boolean isCalibrationFinished() {
-        return calibrationStatus != CalibrationStatus.Ongoing;
+    boolean isCalibrationFinished() {
+        return calibrationStatus == CalibrationStatus.FinishedSuccessfully || calibrationStatus == CalibrationStatus.FinishedFailed;
     }
-    public void setCalibrationStatusListener(ICalibrationStatusListener listener) {
+    void setCalibrationStatusListener(ICalibrationStatusListener listener) {
         calibrationListener = listener;
     }
-    private void setStatus(CalibrationStatus status) {
+    private void setStatus(CalibrationStatus newStatus, @Nullable String errorMessage) {
+        if (calibrationStatus == CalibrationStatus.FinishedFailed || calibrationStatus == CalibrationStatus.FinishedSuccessfully)
+            throw new RuntimeException("Attempt to change status of already finished calibration was made.");
         CalibrationStatus oldStatus = calibrationStatus;
-        calibrationStatus = status;
-        calibrationStatusPointer.setInt(0, status.intValue);
+        calibrationStatus = newStatus;
+        calibrationStatusPointer.setInt(0, newStatus.intValue);
+        this.errorMessage = errorMessage;
         if (null != calibrationListener)
-            calibrationListener.CalibrationStatusChanged(oldStatus, status);
+            calibrationListener.CalibrationStatusChanged(oldStatus, newStatus);
     }
 }
