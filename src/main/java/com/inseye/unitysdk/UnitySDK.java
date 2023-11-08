@@ -14,10 +14,10 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.os.Debug;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
+
+import androidx.annotation.Nullable;
 
 import com.inseye.shared.R;
 import com.inseye.shared.communication.ActionResult;
@@ -27,40 +27,62 @@ import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
-import com.inseye.shared.utils.NullBindingDelegate;
+import com.inseye.shared.utils.IPluggableServiceConnection;
 import com.inseye.shared.utils.PluggableServiceConnection;
-import com.inseye.shared.utils.ServiceConnectedDelegate;
+import com.inseye.unitysdk.tests.ServiceConnectionProxy;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class UnitySDK {
     public static final String TAG = "AndroidUnitySDK";
     private static final SDKState sdkState = new SDKState();
     private static String errorMessage = "";
+    @Nullable
     private static ISharedService sharedService;
+    @Nullable
     private static EyeTrackerEventListener eventListener;
     private static CalibrationProcedure calibrationProcedure;
-    private static final PluggableServiceConnection connection = new PluggableServiceConnection();
+    private static IPluggableServiceConnection connection = new PluggableServiceConnection();
     private static final Object lockObject = new Object();
 
     static {
         resetConnectionObject();
     }
 
+    /*
+     * Called by UnitySDKTestProxy to inject proxy for test purposes.
+     *
+     * @return Service proxy
+     */
+    public static ServiceConnectionProxy injectServiceProxy() {
+        if (connection instanceof ServiceConnectionProxy)
+            return (ServiceConnectionProxy) connection;
+        ServiceConnectionProxy proxy = new ServiceConnectionProxy(connection, sharedService);
+        connection = proxy;
+        sharedService = proxy;
+        return proxy;
+    }
+
+    /*
+     * Called from UnitySDKTestProxy to remove proxy.
+     *
+     */
+    public static void revokeServiceProxy() {
+        if (!(connection instanceof ServiceConnectionProxy))
+            return;
+        ServiceConnectionProxy proxy = (ServiceConnectionProxy) connection;
+        sharedService = proxy.getSharedService();
+        connection = proxy.getServiceConnection();
+    }
 
     /**
      * Called by UnitySDK to initialize SDK
      *
      * @return one of ErrorCodes
      */
-    public static int initialize(String listenerGameObjectName, long timeout) throws Exception {
-        Log.i(TAG, "initialize, timeout = " + timeout + "callback object name = " + listenerGameObjectName);
-        sdkState.setUnityListener(listenerGameObjectName);
-        eventListener = new EyeTrackerEventListener(listenerGameObjectName);
+    public static int initialize(long statePointer, long timeout) throws Exception {
+        Log.i(TAG, "initialize, timeout = " + timeout + "state pointer = " + statePointer);
+        sdkState.setUnityPointer(statePointer);
 
         if (sdkState.isInState(SDKState.CONNECTED)) {
             return ErrorCodes.SDKAlreadyConnected;
@@ -69,7 +91,7 @@ public class UnitySDK {
         sharedService = null;
         try {
             connection.setServiceConnectedDelegate((name, service) -> {
-                Log.d(TAG, "Service connected during initialization.");
+                Log.i(TAG, "Service connected during initialization.");
                 synchronized (lockObject) {
                     sharedService = ISharedService.Stub.asInterface(service);
                     lockObject.notifyAll();
@@ -100,6 +122,7 @@ public class UnitySDK {
                 resetConnectionObject();
             }
             connection.setServiceDisconnectedDelegate((name) -> {
+                Log.i(TAG, "Service disconnected.");
                 // service is temporarily disconnected, but should reconnect in the future
                 sdkState.setState(SDKState.NOT_CONNECTED);
                 sharedService = null;
@@ -108,17 +131,21 @@ public class UnitySDK {
             });
             connection.setServiceConnectedDelegate((name, service) ->
             {
+                Log.i(TAG, "Service reconnected.");
                 sharedService = ISharedService.Stub.asInterface(service);
                 sdkState.setState(SDKState.CONNECTED);
                 try {
                     // NOTE: no idea how can it throw at this point
-                    if (null != eventListener)
+                    if (null != eventListener) {
+                        assert sharedService != null;
                         eventListener.setTrackerAvailability(sharedService.getTrackerAvailability());
+                    }
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
             });
             connection.setBindingDiedDelegate((name) -> {
+                Log.i(TAG, "Service service binding died.");
                 // service disconnected, and will not reconnect without action
                 sdkState.setState(SDKState.NOT_CONNECTED);
                 sharedService = null;
@@ -132,6 +159,7 @@ public class UnitySDK {
                         connection, Context.BIND_AUTO_CREATE);
             });
             connection.setNullBindingDelegate((name) -> {
+                Log.e(TAG, "Service service returned null binding.");
                 // service returned null binding and will not return anything else (probably)
                 sdkState.setState(SDKState.NOT_CONNECTED);
                 sharedService = null;
@@ -144,8 +172,7 @@ public class UnitySDK {
             return HandleException(e);
         } finally {
             if (!sdkState.isInState(SDKState.CONNECTED)) {
-                eventListener = null;
-                sdkState.clearUnityGameObject();
+                sdkState.clearUnityPointer();
             }
         }
     }
@@ -155,6 +182,8 @@ public class UnitySDK {
         try {
             if (sdkState.isInState(SDKState.NOT_CONNECTED))
                 return ErrorCodes.Successful;
+            assert sharedService != null;
+            sharedService.unsubscribeFromEyetrackerEvents();
             sdkState.setState(SDKState.NOT_CONNECTED);
             Log.d(TAG, "UnitySDK unbound from service");
             UnityPlayer.currentActivity.getApplicationContext().unbindService(connection);
@@ -162,7 +191,7 @@ public class UnitySDK {
             return HandleException(e);
         } finally {
             eventListener = null;
-            sdkState.clearUnityGameObject();
+            sdkState.clearUnityPointer();
         }
         return ErrorCodes.Successful;
     }
@@ -176,6 +205,7 @@ public class UnitySDK {
         Log.d(TAG, "getEyeTrackerAvailability");
         if (!sdkState.isInState(SDKState.CONNECTED))
             throw new Exception("SDK is not connected to service");
+        assert sharedService != null;
         return sharedService.getTrackerAvailability().value;
     }
 
@@ -190,6 +220,7 @@ public class UnitySDK {
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
         try {
+            assert sharedService != null;
             IntActionResult portResult = sharedService.startStreamingGazeData();
             if (!portResult.success) {
                 setErrorMessage(portResult.errorMessage);
@@ -215,6 +246,7 @@ public class UnitySDK {
         Log.d(TAG, "stopEyeTrackingDataStream");
         if (sdkState.isInState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM)) {
             try {
+                assert sharedService != null;
                 sharedService.stopStreamingGazeData();
                 return ErrorCodes.Successful;
             } catch (Exception exception) {
@@ -233,13 +265,15 @@ public class UnitySDK {
      *
      * @return one of ErrorCode values
      */
-    public static int subscribeToEvents() {
+    public static int subscribeToEvents(String listenerObjectName) {
         Log.d(TAG, "subscribeToEvents");
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.SDKIsNotConnectedToService;
         if (sdkState.isInState(SDKState.SUBSCRIBED_TO_EVENTS))
             return ErrorCodes.AlreadySubscribedToEvents;
         try {
+            assert sharedService != null;
+            eventListener = new EyeTrackerEventListener(listenerObjectName);
             sharedService.subscribeToEyetrackerEvents(eventListener);
             sdkState.addState(SDKState.SUBSCRIBED_TO_EVENTS);
         } catch (RemoteException e) {
@@ -260,6 +294,7 @@ public class UnitySDK {
         if (!sdkState.isInState(SDKState.CONNECTED))
             return ErrorCodes.Successful;
         try {
+            assert sharedService != null;
             sharedService.unsubscribeFromEyetrackerEvents();
             sdkState.removeState(SDKState.SUBSCRIBED_TO_EVENTS);
             Log.i(TAG, "Unsubscribed from hardware events");
@@ -292,6 +327,7 @@ public class UnitySDK {
         };
         calibrationProcedure.setCalibrationStatusListener(listener);
         ActionResult actionResult = new ActionResult();
+        assert sharedService != null;
         IServiceCalibrationCallback serviceCallback = sharedService.startCalibrationProcedure(actionResult, calibrationProcedure.getCalibrationCallback());
         if (!actionResult.successful) {
             setErrorMessage(actionResult.errorMessage);
@@ -357,6 +393,7 @@ public class UnitySDK {
             throw new Exception("SDK is not connected to service");
         Version serviceVersion = new Version();
         Version firmwareVersion = new Version();
+        assert sharedService != null;
         sharedService.getVersions(serviceVersion, firmwareVersion);
         return serviceVersion.toString() + '\n' + firmwareVersion;
     }
@@ -383,6 +420,7 @@ public class UnitySDK {
         Log.d(TAG, "getDominantEye");
         if (!sdkState.isInState(SDKState.CONNECTED))
             return Eye.BOTH.value;
+        assert sharedService != null;
         return sharedService.getDominantEye().value;
     }
 

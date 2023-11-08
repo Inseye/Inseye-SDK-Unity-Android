@@ -1,5 +1,5 @@
 /*
- * Last edit: 06.11.2023, 10:57
+ * Last edit: 09.10.2023, 11:58
  * Copyright (c) Inseye Inc.
  *
  * This file is part of Inseye Software Development Kit subject to Inseye SDK License
@@ -10,17 +10,19 @@ package com.inseye.unitysdk;
 
 import android.util.Log;
 
-import com.unity3d.player.UnityPlayer;
+import com.sun.jna.Pointer;
+
+import java.util.HashMap;
 
 public class SDKState {
-    private String listenerGameObjectName;
+    private Pointer cSharpPointer;
     private static class ConstSDKState {
         private final int value;
         ConstSDKState(int initialValue) {
             value = initialValue;
         }
     }
-    
+
     public static final ConstSDKState NOT_CONNECTED = new ConstSDKState(0);
     public static final ConstSDKState CONNECTED = new ConstSDKState(1);
     public static final ConstSDKState CALIBRATING = new ConstSDKState(2);
@@ -41,33 +43,36 @@ public class SDKState {
 
     public void addState(ConstSDKState sdkState) {
         value |= sdkState.value;
-        updateUnityListener();
+        updatePointer();
     }
 
     public void removeState(ConstSDKState sdkState) {
         value &= (~sdkState.value);
-        updateUnityListener();
+        updatePointer();
     }
 
     public void setState(ConstSDKState sdkState) {
         value = sdkState.value;
-        updateUnityListener();
+        updatePointer();
     }
 
-    public void setUnityListener(String gameObjectName) throws Exception {
-        listenerGameObjectName = gameObjectName;
-        updateUnityListener();
+    public void setUnityPointer(long stateIntPointer) throws Exception {
+        Pointer javaPointer = new Pointer(stateIntPointer);
+        if (cSharpPointer != null)
+            Log.e(UnitySDK.TAG, "CSharpPointer is not null, there is error in SDK logic.");
+        cSharpPointer = new Pointer(stateIntPointer);
+        updatePointer();
     }
 
-    public void clearUnityGameObject() {
-        listenerGameObjectName = null;
+    public void clearUnityPointer() {
+        cSharpPointer = null;
     }
 
-    private void updateUnityListener() {
+    private void updatePointer() {
         Log.i(UnitySDK.TAG, "Current state: " + value);
-        if (listenerGameObjectName == null)
+        if (cSharpPointer == null)
             return;
-        UnityPlayer.UnitySendMessage(listenerGameObjectName, "InvokeSDKStateChanged", Integer.toString(value));
+        cSharpPointer.setInt(0, value);
     }
 
 }
