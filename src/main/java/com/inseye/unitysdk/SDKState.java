@@ -22,7 +22,7 @@ public class SDKState {
             value = initialValue;
         }
     }
-    
+
     public static final ConstSDKState NOT_CONNECTED = new ConstSDKState(0);
     public static final ConstSDKState CONNECTED = new ConstSDKState(1);
     public static final ConstSDKState CALIBRATING = new ConstSDKState(2);
