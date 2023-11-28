@@ -1,5 +1,5 @@
 /*
- * Last edit: 26.11.2023, 09:38
+ * Last edit: 28.11.2023, 16:59
  * Copyright (c) Inseye Inc.
  *
  * This file is part of Inseye Software Development Kit subject to Inseye SDK License
@@ -12,11 +12,8 @@ package com.inseye.unitysdk.tests;
 import android.content.ComponentName;
 import android.content.res.Resources;
 import android.os.IBinder;
-import android.os.IInterface;
-import android.os.Parcel;
 import android.os.RemoteException;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.inseye.shared.communication.ActionResult;
@@ -35,13 +32,10 @@ import com.inseye.shared.utils.NullBindingDelegate;
 import com.inseye.shared.utils.ServiceConnectedDelegate;
 import com.inseye.shared.utils.ServiceDisconnectedDelegate;
 import com.inseye.unitysdk.Log;
-import com.inseye.unitysdk.UnitySDK;
 import com.unity3d.player.UnityPlayer;
 import com.inseye.shared.R;
 
-import java.io.FileDescriptor;
-
-public class ServiceConnectionProxy implements IPluggableServiceConnection, ISharedService, IBinder {
+public class ServiceConnectionProxy extends ISharedService.Stub implements IPluggableServiceConnection {
 
     static class GazeDataSourceMockArguments {
         public final int port;
@@ -51,10 +45,14 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
         }
     }
 
-    private IBinder binder;
+    private IBinder trueBinder;
     private ISharedService serviceImplementation;
     @Nullable
     private GazeDataSourceMockArguments gazeDataSourceMockArguments;
+
+    @Nullable
+    private MockCalibrationProcedure mockCalibrationProcedure;
+
     private final IPluggableServiceConnection serviceConnection;
     private static final ComponentName componentName;
 
@@ -66,7 +64,7 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     public ServiceConnectionProxy(IPluggableServiceConnection serviceConnection, ISharedService serviceImplementation) {
         this.serviceConnection = serviceConnection;
         if (null != serviceImplementation)
-            binder = serviceImplementation.asBinder();
+            trueBinder = serviceImplementation.asBinder();
         this.serviceImplementation = serviceImplementation;
     }
 
@@ -83,9 +81,25 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     }
 
     public void proxyServiceConnect() {
-        if (null == binder)
+        if (null == trueBinder)
             Log.e("Binder is null");
-        this.serviceConnection.onServiceConnected(componentName, binder);
+        this.serviceConnection.onServiceConnected(componentName, this);
+    }
+
+    /*
+     * Must not be called before starting calibration
+     */
+    public UnityCalibrationProcedureProxy proxyServiceCalibration() {
+        Log.d("Injected proxy calibration");
+        mockCalibrationProcedure = new MockCalibrationProcedure();
+        return new UnityCalibrationProcedureProxy(mockCalibrationProcedure);
+    }
+
+    /*
+     * Must not be called during calibration.
+     */
+    void removeProxyCalibration() {
+        mockCalibrationProcedure = null;
     }
 
     /*
@@ -133,6 +147,12 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
 
     @Override
     public IServiceCalibrationCallback startCalibrationProcedure(ActionResult result, ICalibrationCallback clientInterface) throws RemoteException {
+        Log.i("mock: startCalibrationProcedure, callback: " + clientInterface);
+        if (null != mockCalibrationProcedure) {
+            mockCalibrationProcedure.setCalibrationCallback(clientInterface);
+            result.setSuccessful();
+            return mockCalibrationProcedure;
+        }
         return serviceImplementation.startCalibrationProcedure(result, clientInterface);
     }
 
@@ -178,7 +198,8 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
 
     @Override
     public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-        binder = iBinder;
+        Log.d("ServiceConnectionProxy: onServiceConnected");
+        trueBinder = iBinder;
         serviceImplementation = ISharedService.Stub.asInterface(iBinder);
         serviceConnection.onServiceConnected(componentName, this);
     }
@@ -186,21 +207,21 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     @Override
     public void onServiceDisconnected(ComponentName componentName) {
         serviceImplementation = null;
-        binder = null;
+        trueBinder = null;
         serviceConnection.onServiceDisconnected(componentName);
     }
 
     @Override
     public void onBindingDied(ComponentName name) {
         serviceImplementation = null;
-        binder = null;
+        trueBinder = null;
         serviceConnection.onBindingDied(name);
     }
 
     @Override
     public void onNullBinding(ComponentName name) {
         serviceImplementation = null;
-        binder = null;
+        trueBinder = null;
         serviceConnection.onNullBinding(name);
     }
 
@@ -222,57 +243,5 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     @Override
     public void setNullBindingDelegate(@Nullable NullBindingDelegate delegate) {
         serviceConnection.setNullBindingDelegate(delegate);
-    }
-
-    @Nullable
-    @Override
-    public String getInterfaceDescriptor() throws RemoteException {
-        return binder.getInterfaceDescriptor();
-    }
-
-    @Override
-    public boolean pingBinder() {
-        return binder.pingBinder();
-    }
-
-    @Override
-    public boolean isBinderAlive() {
-        return binder.isBinderAlive();
-    }
-
-    @Nullable
-    @Override
-    public IInterface queryLocalInterface(@NonNull String s) {
-        return binder.queryLocalInterface(s);
-    }
-
-    @Override
-    public void dump(@NonNull FileDescriptor fileDescriptor, @Nullable String[] strings) throws RemoteException {
-        binder.dump(fileDescriptor, strings);
-    }
-
-    @Override
-    public void dumpAsync(@NonNull FileDescriptor fileDescriptor, @Nullable String[] strings) throws RemoteException {
-        binder.dumpAsync(fileDescriptor, strings);
-    }
-
-    @Override
-    public boolean transact(int i, @NonNull Parcel parcel, @Nullable Parcel parcel1, int i1) throws RemoteException {
-        return binder.transact(i, parcel, parcel1, i1);
-    }
-
-    @Override
-    public void linkToDeath(@NonNull DeathRecipient deathRecipient, int i) throws RemoteException {
-        binder.linkToDeath(deathRecipient, i);
-    }
-
-    @Override
-    public boolean unlinkToDeath(@NonNull DeathRecipient deathRecipient, int i) {
-        return binder.unlinkToDeath(deathRecipient, i);
-    }
-
-    @Override
-    public IBinder asBinder() {
-        return binder;
     }
 }

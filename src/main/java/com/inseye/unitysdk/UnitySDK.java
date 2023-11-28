@@ -1,5 +1,5 @@
 /*
- * Last edit: 06.11.2023, 15:33
+ * Last edit: 28.11.2023, 16:59
  * Copyright (c) Inseye Inc.
  *
  * This file is part of Inseye Software Development Kit subject to Inseye SDK License
@@ -54,8 +54,11 @@ public class UnitySDK {
      * @return Service proxy
      */
     public static ServiceConnectionProxy injectServiceProxy() {
-        if (connection instanceof ServiceConnectionProxy)
+        Log.i("injectServiceProxy");
+        if (connection instanceof ServiceConnectionProxy) {
+            Log.i("returning already injected service proxy");
             return (ServiceConnectionProxy) connection;
+        }
         ServiceConnectionProxy proxy = new ServiceConnectionProxy(connection, sharedService);
         connection = proxy;
         sharedService = proxy;
@@ -68,14 +71,11 @@ public class UnitySDK {
             Log.CurrentLevel = Log.Level.VERBOSE;
         else if (level == Log.Level.INFO.value) {
             Log.CurrentLevel = Log.Level.INFO;
-        }
-        else if (level == Log.Level.DEBUG.value) {
+        } else if (level == Log.Level.DEBUG.value) {
             Log.CurrentLevel = Log.Level.DEBUG;
-        }
-        else if (level == Log.Level.WARN.value) {
+        } else if (level == Log.Level.WARN.value) {
             Log.CurrentLevel = Log.Level.WARN;
-        }
-        else {
+        } else {
             Log.CurrentLevel = Log.Level.ERROR;
         }
     }
@@ -85,6 +85,7 @@ public class UnitySDK {
      *
      */
     public static void revokeServiceProxy() {
+
         if (!(connection instanceof ServiceConnectionProxy))
             return;
         ServiceConnectionProxy proxy = (ServiceConnectionProxy) connection;

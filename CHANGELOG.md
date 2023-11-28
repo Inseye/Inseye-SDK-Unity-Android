@@ -8,7 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - added CHANGELOG.md to repository
 
+### Fixed
+
+- changed mock implementation fixing improper service mock injection if mock was used before connecting to non-mocked service  
+
 ### Changed
-- extended service proxy for test purposes to allow mocking gaze data source 
+
+- extended service proxy for test purposes to allow mocking gaze data source
+- service proxy allows mocking calibration procedure
