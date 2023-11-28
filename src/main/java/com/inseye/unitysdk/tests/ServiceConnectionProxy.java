@@ -15,7 +15,6 @@ import android.os.IBinder;
 import android.os.IInterface;
 import android.os.Parcel;
 import android.os.RemoteException;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -35,6 +34,7 @@ import com.inseye.shared.utils.IPluggableServiceConnection;
 import com.inseye.shared.utils.NullBindingDelegate;
 import com.inseye.shared.utils.ServiceConnectedDelegate;
 import com.inseye.shared.utils.ServiceDisconnectedDelegate;
+import com.inseye.unitysdk.Log;
 import com.inseye.unitysdk.UnitySDK;
 import com.unity3d.player.UnityPlayer;
 import com.inseye.shared.R;
@@ -84,7 +84,7 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
 
     public void proxyServiceConnect() {
         if (null == binder)
-            Log.e(UnitySDK.TAG, "Binder is null");
+            Log.e("Binder is null");
         this.serviceConnection.onServiceConnected(componentName, binder);
     }
 
@@ -96,6 +96,7 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
      * with fake implementation that never fails
      */
     public void enableMockServiceGazeDataSource(int portReturnedFromStartStreamingGazeData) {
+        Log.i("Enabled mock service gaze data source: " + portReturnedFromStartStreamingGazeData);
         gazeDataSourceMockArguments = new GazeDataSourceMockArguments(portReturnedFromStartStreamingGazeData);
     }
 
@@ -109,7 +110,10 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
     @Override
     public IntActionResult startStreamingGazeData() throws RemoteException {
         if (null != gazeDataSourceMockArguments)
+        {
+            Log.d("Returning mock gaze data source port: " + gazeDataSourceMockArguments.port);
             return IntActionResult.success(gazeDataSourceMockArguments.port);
+        }
         return serviceImplementation.startStreamingGazeData();
     }
 
