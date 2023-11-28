@@ -8,11 +8,7 @@
  */
 package com.inseye.unitysdk;
 
-import android.util.Log;
-
 import com.sun.jna.Pointer;
-
-import java.util.HashMap;
 
 public class SDKState {
     private Pointer cSharpPointer;
@@ -59,7 +55,7 @@ public class SDKState {
     public void setUnityPointer(long stateIntPointer) throws Exception {
         Pointer javaPointer = new Pointer(stateIntPointer);
         if (cSharpPointer != null)
-            Log.e(UnitySDK.TAG, "CSharpPointer is not null, there is error in SDK logic.");
+            Log.e("CSharpPointer is not null, there is error in SDK logic.");
         cSharpPointer = new Pointer(stateIntPointer);
         updatePointer();
     }
@@ -69,7 +65,7 @@ public class SDKState {
     }
 
     private void updatePointer() {
-        Log.i(UnitySDK.TAG, "Current state: " + value);
+        Log.i("Current state: " + value);
         if (cSharpPointer == null)
             return;
         cSharpPointer.setInt(0, value);
