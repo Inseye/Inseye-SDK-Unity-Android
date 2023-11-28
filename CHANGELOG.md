@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - added CHANGELOG.md to repository
-- introduced versioning to android part of Inseye SDK
-- 
+
 ### Changed
 - extended service proxy for test purposes to allow mocking gaze data source 
