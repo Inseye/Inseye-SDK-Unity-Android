@@ -1,5 +1,5 @@
 /*
- * Last edit: 07.11.2023, 09:38
+ * Last edit: 26.11.2023, 09:38
  * Copyright (c) Inseye Inc.
  *
  * This file is part of Inseye Software Development Kit subject to Inseye SDK License
@@ -8,13 +8,13 @@
  */
 
 package com.inseye.unitysdk.tests;
+
 import android.content.ComponentName;
 import android.content.res.Resources;
 import android.os.IBinder;
 import android.os.IInterface;
 import android.os.Parcel;
 import android.os.RemoteException;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -27,7 +27,6 @@ import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
-import com.inseye.shared.communication.StringActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
 import com.inseye.shared.utils.BindingDiedDelegate;
@@ -35,6 +34,7 @@ import com.inseye.shared.utils.IPluggableServiceConnection;
 import com.inseye.shared.utils.NullBindingDelegate;
 import com.inseye.shared.utils.ServiceConnectedDelegate;
 import com.inseye.shared.utils.ServiceDisconnectedDelegate;
+import com.inseye.unitysdk.Log;
 import com.inseye.unitysdk.UnitySDK;
 import com.unity3d.player.UnityPlayer;
 import com.inseye.shared.R;
@@ -43,17 +43,27 @@ import java.io.FileDescriptor;
 
 public class ServiceConnectionProxy implements IPluggableServiceConnection, ISharedService, IBinder {
 
+    static class GazeDataSourceMockArguments {
+        public final int port;
+
+        public GazeDataSourceMockArguments(int port) {
+            this.port = port;
+        }
+    }
+
     private IBinder binder;
     private ISharedService serviceImplementation;
+    @Nullable
+    private GazeDataSourceMockArguments gazeDataSourceMockArguments;
     private final IPluggableServiceConnection serviceConnection;
     private static final ComponentName componentName;
+
     static {
         Resources res = UnityPlayer.currentActivity.getResources();
         componentName = new ComponentName(res.getString(R.string.service_package_name), res.getString(R.string.service_class_name));
     }
 
-    public ServiceConnectionProxy(IPluggableServiceConnection serviceConnection, ISharedService serviceImplementation)
-    {
+    public ServiceConnectionProxy(IPluggableServiceConnection serviceConnection, ISharedService serviceImplementation) {
         this.serviceConnection = serviceConnection;
         if (null != serviceImplementation)
             binder = serviceImplementation.asBinder();
@@ -74,23 +84,50 @@ public class ServiceConnectionProxy implements IPluggableServiceConnection, ISha
 
     public void proxyServiceConnect() {
         if (null == binder)
-            Log.e(UnitySDK.TAG, "Binder is null");
+            Log.e("Binder is null");
         this.serviceConnection.onServiceConnected(componentName, binder);
     }
 
+    /*
+     * Replaces:
+     * - startStreamingGazeData
+     * - stopStreamingGazeData
+     * - isStreamingGazeData
+     * with fake implementation that never fails
+     */
+    public void enableMockServiceGazeDataSource(int portReturnedFromStartStreamingGazeData) {
+        Log.i("Enabled mock service gaze data source: " + portReturnedFromStartStreamingGazeData);
+        gazeDataSourceMockArguments = new GazeDataSourceMockArguments(portReturnedFromStartStreamingGazeData);
+    }
+
+    /*
+     * Disables mock implementation enabled with 'enableMockServiceGazeDataSource'
+     */
+    public void disableMockServiceGazeDataSource() {
+        gazeDataSourceMockArguments = null;
+    }
 
     @Override
     public IntActionResult startStreamingGazeData() throws RemoteException {
+        if (null != gazeDataSourceMockArguments)
+        {
+            Log.d("Returning mock gaze data source port: " + gazeDataSourceMockArguments.port);
+            return IntActionResult.success(gazeDataSourceMockArguments.port);
+        }
         return serviceImplementation.startStreamingGazeData();
     }
 
     @Override
     public void stopStreamingGazeData() throws RemoteException {
+        if (null != gazeDataSourceMockArguments)
+            return;
         serviceImplementation.stopStreamingRawData();
     }
 
     @Override
     public int isStreamingGazeData() throws RemoteException {
+        if (null != gazeDataSourceMockArguments)
+            return gazeDataSourceMockArguments.port;
         return serviceImplementation.isStreamingGazeData();
     }
 
