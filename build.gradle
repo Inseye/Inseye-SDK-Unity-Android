@@ -1,14 +1,14 @@
 plugins {
-    id 'com.android.library' version '7.2.2' apply true
-    id 'com.android.application' version '7.2.2' apply false
+    id 'com.android.library' version '8.2.0' apply true
+    id 'com.android.application' version '8.2.0' apply false
 }
 
 android {
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         minSdk 28
-        targetSdk 33
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -27,6 +27,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    namespace 'com.inseye.unitysdk'
 }
 
 dependencies {

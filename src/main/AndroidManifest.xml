@@ -8,7 +8,6 @@
   ~ All other rights reserved.
   -->
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.inseye.unitysdk">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
 </manifest>
