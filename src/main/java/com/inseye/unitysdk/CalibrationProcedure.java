@@ -100,7 +100,9 @@ public class CalibrationProcedure {
         }
 
         @Override
-        public void finishCalibration(ActionResult calibrationResult) throws RemoteException {
+        public void finishCalibration(ActionResult calibrationResult) {
+            if (isCalibrationFinished())
+                return;
             if (calibrationResult.successful)
                 setStatus(CalibrationStatus.FinishedSuccessfully, null);
             else {
@@ -154,7 +156,7 @@ public class CalibrationProcedure {
     }
 
     void onServiceDisconnected() {
-        if (calibrationStatus != CalibrationStatus.Ongoing)
+        if (isCalibrationFinished())
             return;
         setStatus(CalibrationStatus.FinishedFailed, "Service disconnected.");
     }
@@ -172,11 +174,14 @@ public class CalibrationProcedure {
             ActionResult result = serviceCalibrationCallback.abortCalibrationProcedure();
             if (!result.successful)
                 optionalErrorMessage = result.errorMessage;
+            else
+                optionalErrorMessage = "Aborted by user.";
         } catch (RemoteException e) {
             e.printStackTrace();
         }
         finally {
-            setStatus(CalibrationStatus.FinishedFailed, optionalErrorMessage);
+            if (!isCalibrationFinished())
+                setStatus(CalibrationStatus.FinishedFailed, optionalErrorMessage);
         }
     }
     /*

@@ -5,13 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.6] - 2024-01-24
 
 ### Changed
 
+- frequent status checks in `CalibrationProcedure` to prevent accidental exception throws
+ 
 - migrated to sdk 34
 
 - AGP migrated to version 8.2.0
+
+- migrated BuildConfig to gradle build files
 
 ## [0.0.5] - 2023-11-28
 
