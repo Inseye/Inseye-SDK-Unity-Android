@@ -9,7 +9,6 @@
 
 package com.inseye.unitysdk;
 import android.os.RemoteException;
-import android.util.Log;
 
 import com.inseye.shared.communication.IEyetrackerEventListener;
 import com.inseye.shared.communication.TrackerAvailability;
@@ -22,7 +21,7 @@ public class EyeTrackerEventListener extends IEyetrackerEventListener.Stub {
     }
 
     public void setTrackerAvailability(TrackerAvailability availability) {
-        Log.d(UnitySDK.TAG, "handleTrackerAvailabilityChanged: " + availability.toString());
+        Log.d("handleTrackerAvailabilityChanged: " + availability.toString());
         UnityPlayer.UnitySendMessage(listenerGameObjectName, "InvokeEyeTrackerAvailabilityChanged", Integer.toString(availability.value));
     }
     @Override

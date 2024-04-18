@@ -33,7 +33,6 @@ import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
 
 public class UnitySDK {
-    public static final String TAG = "AndroidUnitySDK";
     private static final SDKState sdkState = new SDKState();
     private static String errorMessage = "";
     @Nullable
@@ -78,6 +77,7 @@ public class UnitySDK {
         } else {
             Log.CurrentLevel = Log.Level.ERROR;
         }
+        Log.d("Log level set to: " + level);
     }
 
     /*
