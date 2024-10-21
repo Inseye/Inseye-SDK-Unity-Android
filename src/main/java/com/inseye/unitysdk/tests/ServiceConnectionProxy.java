@@ -19,19 +19,23 @@ import androidx.annotation.Nullable;
 import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.BinaryStreamActionResult;
 import com.inseye.shared.communication.Eye;
+import com.inseye.shared.communication.IBuiltInCalibrationCallback;
 import com.inseye.shared.communication.ICalibrationCallback;
 import com.inseye.shared.communication.IEyetrackerEventListener;
+import com.inseye.shared.communication.IServiceBuiltInCalibrationCallback;
 import com.inseye.shared.communication.IServiceCalibrationCallback;
 import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
+import com.inseye.shared.communication.StringActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
-import com.inseye.shared.utils.BindingDiedDelegate;
-import com.inseye.shared.utils.IPluggableServiceConnection;
-import com.inseye.shared.utils.NullBindingDelegate;
-import com.inseye.shared.utils.ServiceConnectedDelegate;
-import com.inseye.shared.utils.ServiceDisconnectedDelegate;
+import com.inseye.shared.communication.VisibleFov;
 import com.inseye.unitysdk.Log;
+import com.inseye.unitysdk.utils.BindingDiedDelegate;
+import com.inseye.unitysdk.utils.IPluggableServiceConnection;
+import com.inseye.unitysdk.utils.NullBindingDelegate;
+import com.inseye.unitysdk.utils.ServiceConnectedDelegate;
+import com.inseye.unitysdk.utils.ServiceDisconnectedDelegate;
 import com.unity3d.player.UnityPlayer;
 import com.inseye.shared.R;
 
@@ -172,13 +176,29 @@ public class ServiceConnectionProxy extends ISharedService.Stub implements IPlug
     }
 
     @Override
-    public void getVersions(Version serviceVersion, Version firmwareVersion) throws RemoteException {
-        serviceImplementation.getVersions(serviceVersion, firmwareVersion);
+    public void getVersions(Version serviceVersion, Version firmwareVersion, Version calibrationVersion) throws RemoteException {
+        serviceImplementation.getVersions(serviceVersion, firmwareVersion, calibrationVersion);
     }
+
 
     @Override
     public Eye getDominantEye() throws RemoteException {
         return serviceImplementation.getDominantEye();
+    }
+
+    @Override
+    public boolean isCalibrated() throws RemoteException {
+        return false;
+    }
+
+    @Override
+    public ActionResult beginRecordingRawData() throws RemoteException {
+        return null;
+    }
+
+    @Override
+    public StringActionResult endRecordingRawData() throws RemoteException {
+        return null;
     }
 
     @Override
@@ -194,6 +214,16 @@ public class ServiceConnectionProxy extends ISharedService.Stub implements IPlug
     @Override
     public boolean isStreamingRawData() throws RemoteException {
         return serviceImplementation.isStreamingRawData();
+    }
+
+    @Override
+    public IServiceBuiltInCalibrationCallback startBuiltInCalibrationProcedure(ActionResult result, IBuiltInCalibrationCallback clientInterface) throws RemoteException {
+        return null;
+    }
+
+    @Override
+    public VisibleFov getVisibleFov() throws RemoteException {
+        return null;
     }
 
     @Override

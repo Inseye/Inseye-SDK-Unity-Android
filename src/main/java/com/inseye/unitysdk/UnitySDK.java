@@ -10,15 +10,11 @@
 package com.inseye.unitysdk;
 
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.res.Resources;
 import android.os.RemoteException;
 
 import androidx.annotation.Nullable;
 
-import com.inseye.shared.R;
 import com.inseye.shared.communication.ActionResult;
 import com.inseye.shared.communication.Eye;
 import com.inseye.shared.communication.IServiceCalibrationCallback;
@@ -26,11 +22,13 @@ import com.inseye.shared.communication.ISharedService;
 import com.inseye.shared.communication.IntActionResult;
 import com.inseye.shared.communication.TrackerAvailability;
 import com.inseye.shared.communication.Version;
-import com.inseye.shared.utils.IPluggableServiceConnection;
-import com.inseye.shared.utils.PluggableServiceConnection;
+import com.inseye.shared.utils.ServiceConnectionIntentFactory;
 import com.inseye.unitysdk.tests.ServiceConnectionProxy;
+import com.inseye.unitysdk.utils.IPluggableServiceConnection;
 import com.sun.jna.Pointer;
 import com.unity3d.player.UnityPlayer;
+
+import java.util.logging.Level;
 
 public class UnitySDK {
     private static final SDKState sdkState = new SDKState();
@@ -47,7 +45,7 @@ public class UnitySDK {
         resetConnectionObject();
     }
 
-    /*
+    /**
      * Called by UnitySDKTestProxy to inject proxy for test purposes.
      *
      * @return Service proxy
@@ -124,7 +122,7 @@ public class UnitySDK {
                 }
             }));
             boolean connectedSuccessfully = currentActivity.getApplicationContext()
-                    .bindService(createBindToServiceIntent(currentActivity),
+                    .bindService(ServiceConnectionIntentFactory.CreateServiceConnectIntent(currentActivity),
                             connection, Context.BIND_AUTO_CREATE);
             if (!connectedSuccessfully)
                 return ErrorCodes.FailedToBindToService;
@@ -162,7 +160,7 @@ public class UnitySDK {
                         eventListener.setTrackerAvailability(sharedService.getTrackerAvailability());
                     }
                 } catch (RemoteException e) {
-                    e.printStackTrace();
+                    Log.logp(Level.SEVERE, UnitySDK.class.toString(), "initialize", "Failed to set tracker availability\n" + e.getMessage());
                 }
             });
             connection.setBindingDiedDelegate((name) -> {
@@ -178,7 +176,7 @@ public class UnitySDK {
                 Activity unityActivity = UnityPlayer.currentActivity;
                 unityActivity.getApplicationContext().unbindService(connection);
                 // try to rebind immediately
-                unityActivity.getApplicationContext().bindService(createBindToServiceIntent(unityActivity),
+                unityActivity.getApplicationContext().bindService(ServiceConnectionIntentFactory.CreateServiceConnectIntent(unityActivity),
                         connection, Context.BIND_AUTO_CREATE);
             });
             connection.setNullBindingDelegate((name) -> {
@@ -274,7 +272,7 @@ public class UnitySDK {
                 return ErrorCodes.Successful;
             } catch (Exception exception) {
                 Log.e("An error occurred when stopping eye tracking data stream.");
-                exception.printStackTrace();
+                Log.logp(Level.SEVERE, UnitySDK.class.toString(), "stopEyeTrackingDataStream", "Failed to top eye tracking data stream\n" + exception.getMessage());
                 return HandleException(exception);
             } finally {
                 sdkState.removeState(SDKState.ATTACHED_TO_GAZE_DATA_STREAM);
@@ -371,8 +369,9 @@ public class UnitySDK {
             throw new Exception("SDK is not connected to service");
         Version serviceVersion = new Version();
         Version firmwareVersion = new Version();
+        Version calibrationVersion = new Version();
         assert sharedService != null;
-        sharedService.getVersions(serviceVersion, firmwareVersion);
+        sharedService.getVersions(serviceVersion, firmwareVersion, calibrationVersion);
         return serviceVersion.toString() + '\n' + firmwareVersion;
     }
 
@@ -411,27 +410,11 @@ public class UnitySDK {
         return ErrorCodes.UnknownError;
     }
 
-    private static Intent createBindToServiceIntent(Activity activity) {
-        Resources res = activity.getResources();
-        Intent serviceIntent = new Intent();
-        ComponentName component = new ComponentName(res.getString(R.string.service_package_name), res.getString(R.string.service_class_name));
-        serviceIntent.setComponent(component);
-        return serviceIntent;
-    }
-
     private static void resetConnectionObject() {
-        connection.setServiceConnectedDelegate((name, service) -> {
-            Log.i("Default handler for: onServiceConnected");
-        });
-        connection.setBindingDiedDelegate((componentName) -> {
-            Log.i("Default handler for: onBindingDied");
-        });
-        connection.setNullBindingDelegate((componentName) -> {
-            Log.i("Default handler for: onNullBinding");
-        });
-        connection.setServiceDisconnectedDelegate((componentName) -> {
-            Log.i("Default handler for: onServiceDisconnected");
-        });
+        connection.setServiceConnectedDelegate((name, service) -> Log.i("Default handler for: onServiceConnected"));
+        connection.setBindingDiedDelegate((componentName) -> Log.i("Default handler for: onBindingDied"));
+        connection.setNullBindingDelegate((componentName) -> Log.i("Default handler for: onNullBinding"));
+        connection.setServiceDisconnectedDelegate((componentName) -> Log.i("Default handler for: onServiceDisconnected"));
     }
 
 }

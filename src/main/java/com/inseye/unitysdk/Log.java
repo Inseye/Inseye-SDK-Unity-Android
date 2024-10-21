@@ -9,7 +9,11 @@
 
 package com.inseye.unitysdk;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public final class Log {
+    private static final Logger logger = Logger.getLogger("com.inseye.unitysdk");
     public enum Level {
         VERBOSE(android.util.Log.VERBOSE),
         DEBUG(android.util.Log.DEBUG),
@@ -43,5 +47,9 @@ public final class Log {
     public static void e(String message, Exception e) {
         if (CurrentLevel.value <= Level.ERROR.value)
             android.util.Log.e(TAG, message, e);
+    }
+
+    public static void logp(java.util.logging.Level level, String classIdentifier, String methodIdentifier, String message) {
+        logger.logp(level, classIdentifier, methodIdentifier, message);
     }
 }
