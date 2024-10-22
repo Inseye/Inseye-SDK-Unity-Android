@@ -1,0 +1,2 @@
+-keep class com.inseye.unitysdk.** { *; }
+-keep class com.sun.jna.** { *; }
