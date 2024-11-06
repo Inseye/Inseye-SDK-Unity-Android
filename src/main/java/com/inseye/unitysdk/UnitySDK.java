@@ -11,6 +11,7 @@ package com.inseye.unitysdk;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.os.RemoteException;
 
 import androidx.annotation.Nullable;
@@ -97,7 +98,7 @@ public class UnitySDK {
      *
      * @return one of ErrorCodes
      */
-    public static int initialize(long statePointer, long timeout) throws Exception {
+    public static int initialize(long statePointer, long timeout, String metadata) throws Exception {
         Log.d("initialize, timeout = " + timeout + "state pointer = " + statePointer);
         sdkState.setUnityPointer(statePointer);
 
@@ -122,7 +123,7 @@ public class UnitySDK {
                 }
             }));
             boolean connectedSuccessfully = currentActivity.getApplicationContext()
-                    .bindService(ServiceConnectionIntentFactory.CreateServiceConnectIntent(currentActivity),
+                    .bindService(createBindIntent(currentActivity, metadata),
                             connection, Context.BIND_AUTO_CREATE);
             if (!connectedSuccessfully)
                 return ErrorCodes.FailedToBindToService;
@@ -176,7 +177,7 @@ public class UnitySDK {
                 Activity unityActivity = UnityPlayer.currentActivity;
                 unityActivity.getApplicationContext().unbindService(connection);
                 // try to rebind immediately
-                unityActivity.getApplicationContext().bindService(ServiceConnectionIntentFactory.CreateServiceConnectIntent(unityActivity),
+                unityActivity.getApplicationContext().bindService(createBindIntent(unityActivity, metadata),
                         connection, Context.BIND_AUTO_CREATE);
             });
             connection.setNullBindingDelegate((name) -> {
@@ -416,5 +417,13 @@ public class UnitySDK {
         connection.setNullBindingDelegate((componentName) -> Log.i("Default handler for: onNullBinding"));
         connection.setServiceDisconnectedDelegate((componentName) -> Log.i("Default handler for: onServiceDisconnected"));
     }
+
+    private static Intent createBindIntent(Context context, String metadata)
+    {
+        Intent intent = ServiceConnectionIntentFactory.CreateServiceConnectIntent(context);
+        intent.putExtra(ServiceConnectionIntentFactory.META, metadata);
+        return intent;
+    }
+
 
 }
